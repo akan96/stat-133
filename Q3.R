@@ -2,6 +2,9 @@
 # Avery Kan: What kind of restaurant have large variations in the ratings?
 
 # Calculate the standard deviation of the ratings for each type of restaurant
+Businesses <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Businesses.csv")
+Complete <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Complete.csv", comment.char="#")
+
 Counts <- 
   Complete %>%
   group_by(business_id) %>%
