@@ -23,6 +23,7 @@ includeSourceDocuments()
 businesses <-read.csv("/Users/HAOCHEN/Desktop/Businesses.csv")
 Complete<-read.csv("/Users/HAOCHEN/Desktop/Complete.csv")
 
+
 df.1 <- businesses %>% inner_join(Complete, by=c("business_id"="business_id"))
 ```
 
