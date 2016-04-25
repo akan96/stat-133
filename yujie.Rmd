@@ -11,6 +11,7 @@ output:
 ```{r include=FALSE}
 # Don't delete this chunk if you are using the DataComputing package
 library(DataComputing)
+
 ```
 *Source file* 
 ```{r, results='asis', echo=FALSE}
@@ -22,7 +23,7 @@ includeSourceDocuments()
 ```{r}
 businesses <-read.csv("/Users/Yujie/Downloads/Businesses.csv")
 Complete<-read.csv("/Users/Yujie/Downloads/Complete.csv")
-
+#
 df.1 <- businesses %>% inner_join(Complete, by=c("business_id"="business_id"))
 
 df.2 <- df.1 %>% select(-votes,-type.x,-type.y,-name, -hours, -attributes, -open) %>% 
