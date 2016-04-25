@@ -11,7 +11,6 @@ output:
 ```{r include=FALSE}
 # Don't delete this chunk if you are using the DataComputing package
 library(DataComputing)
-
 ```
 *Source file* 
 ```{r, results='asis', echo=FALSE}
@@ -23,7 +22,7 @@ includeSourceDocuments()
 ```{r}
 businesses <-read.csv("/Users/Yujie/Downloads/Businesses.csv")
 Complete<-read.csv("/Users/Yujie/Downloads/Complete.csv")
-#
+
 df.1 <- businesses %>% inner_join(Complete, by=c("business_id"="business_id"))
 
 df.2 <- df.1 %>% select(-votes,-type.x,-type.y,-name, -hours, -attributes, -open) %>% 
@@ -291,6 +290,10 @@ num<-data.frame(num_w,num_e,num_f,month) %>% gather(key = type,value = num,num_w
 
 ggplot(num)+
   aes(x=month, y=num, col=type) + geom_point() + geom_line() + scale_x_discrete(breaks= 1:12, label=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))+ ylab("number of reviews")+ ggtitle( "Monthly variation of number of reviews")
+
+```
+
+```{r}
 
 ```
 
