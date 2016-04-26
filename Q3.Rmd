@@ -111,26 +111,16 @@ att <- att %>%
 Separate attributes
 
 ```{r}
-crit <- "Noise|Price R|Alc|Outdoor|Take|Deli|Attire"
+crit <- "Noise|Price R|Alc|Outdoor|Take-|Deli|Attire"
 sepatt <- att %>%
   separate(attributes, into = c("a","b","c","d","e","f","g","h","i"), sep = crit)
-sepatt2 <- 
-  sepatt1 %>% 
+sepatt1 <- 
+  sepatt %>% 
   lapply(function(s) {
     gsub(",.*","", s)
     }) %>%
   as.data.frame()
-  
-clear <- function(s){
-  mutate(b= gsub(b))
-         
-         
-         
-  sepatt %>% 
-  group_by(prim) %>% 
-  summarize(avg= mean(stars),
-         dev= sd(stars)) %>% 
-  arrange(dev)
+sepatt2 <- sepatt1 %>% select(b,c,d,e,f,g,h,i) %>% t() %>% as.data.frame()
+sepatt3 <- sepatt2 %>% arrange(V1:V803)
 
-
-Separating into different attributes
+sepatt4 <- sepatt3 %>% t() %>% as.data.frame()
