@@ -108,6 +108,17 @@ att <- att %>%
          attributes= gsub("\\}","",attributes))
 ```
 
+
+New strategy
+
+```{r}
+attl <- att$attributes %>% str_match_all(",([^,]*): ([^,]*)")
+for (i in 1: length(attl)){
+  attl[[i]] <- attl[[i]][,2:3]
+}
+merged.data.frame = Reduce(function(...) merge(..., by=0,all=T), attl)
+```
+
 Separate attributes
 
 ```{r}
@@ -124,3 +135,13 @@ sepatt2 <- sepatt1 %>% select(b,c,d,e,f,g,h,i) %>% t() %>% as.data.frame()
 sepatt3 <- sepatt2 %>% arrange(V1:V803)
 
 sepatt4 <- sepatt3 %>% t() %>% as.data.frame()
+
+sepatt4 <- sepatt4 %>% unite(V,V1,V2,V3,V4,V5,V6,V7)
+
+satt <- cbind(sepatt1,sepatt4)
+
+satt <- satt %>% 
+select(name,city,V,stars)
+
+YY <- satt %>% group_by(V) %>% tally(sort=TRUE)
+
