@@ -1,0 +1,136 @@
+---
+title: "Question 3"
+author: "Avery Kan"
+date: "Apr 25, 2016"
+output: 
+  html_document:
+  fig_height: 3
+fig_width: 5
+---
+  <!-- Don't edit in between this line and the one below -->
+```{r include=FALSE}
+# Don't delete this chunk if you are using the DataComputing package
+library(DataComputing)
+```
+*Source file* 
+```{r, results='asis', echo=FALSE}
+includeSourceDocuments()
+```
+<!-- Don't edit the material above this line -->
+
+
+
+# Stat 133 Final Project: Yelp
+# Avery Kan: What kind of restaurant have large variations in the ratings?
+
+# Calculate the standard deviation of the ratings for each type of restaurant
+```{r}
+Businesses <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Businesses.csv")
+Complete <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Complete.csv", comment.char="#")
+```
+
+
+Cleaning up the data
+
+```{r}
+Businesses <- 
+  Businesses%>%
+  mutate(attributes= gsub("u'","",attributes),
+         categories= gsub("u'","",categories),
+         neighborhoods=gsub("u'","",neighborhoods))
+```
+
+Filter for open restaurants
+
+```{r}
+Open <- 
+  Businesses %>% 
+  filter(grepl("Restaurant",categories), as.character(open) == "True")
+```
+
+
+Inner-join to form Reviews table
+```{r}
+Reviews <- Open %>%
+  select(name,business_id,city,categories,attributes) %>%
+  inner_join(Complete[,-(1:4)],by= c("business_id"="business_id"))
+```
+
+
+Average reviews
+```{r}
+AvgReviews <- 
+  Reviews %>%
+  select(name, city, categories, attributes, stars) %>% 
+  group_by(name) %>%
+  mutate_each(funs(mean(., na.rm=TRUE)), stars) %>% 
+  arrange(desc(stars)) 
+Avg <- 
+  AvgReviews[!duplicated(AvgReviews[,1]),]
+```
+
+Cleanup categories
+
+```{r}
+cat <- Avg %>% 
+  select(-attributes) %>% 
+  mutate(categories= gsub("Restaurants","",categories))
+cat <- cat %>% 
+  mutate(categories= gsub("'","",categories),
+         categories= gsub(", ]","",categories),
+         categories= gsub("]","",categories),
+         categories= gsub("\\[","",categories))
+```
+
+Separating into different categories
+
+```{r} 
+sepcat <- cat %>%
+  separate(categories, into = c("prim", "sec", "tert", "quart"),sep = ",", extra= "merge")
+ 
+sepcat %>% 
+  group_by(prim) %>% 
+  summarize(avg= mean(stars),
+         dev= sd(stars)) %>% 
+  arrange(dev)
+
+```
+
+
+Cleanup attributes
+```{r}
+att <- Avg %>% 
+  select(-categories) %>% 
+  mutate(attributes= gsub("Restaurants","",attributes))
+att <- att %>% 
+  mutate(attributes= gsub("'","",attributes),
+         attributes= gsub("\\{","",attributes),
+         attributes= gsub("\\}","",attributes))
+```
+
+Separate attributes
+
+```{r}
+crit <- "Noise|Price R|Alc|Outdoor|Take|Deli|Attire"
+sepatt <- att %>%
+  separate(attributes, into = c("a","b","c","d","e","f","g","h","i"), sep = crit)
+sepatt2 <- 
+  sepatt1 %>% 
+  lapply(function(s) {
+    gsub(",.*","", s)
+    }) %>%
+  as.data.frame()
+  
+clear <- function(s){
+  mutate(b= gsub(b))
+         
+         
+         
+  sepatt %>% 
+  group_by(prim) %>% 
+  summarize(avg= mean(stars),
+         dev= sd(stars)) %>% 
+  arrange(dev)
+
+
+Separating into different attributes
