@@ -109,39 +109,45 @@ att <- att %>%
 ```
 
 
-New strategy
+Obtaining tidy table of attributes
 
 ```{r}
 attl <- att$attributes %>% str_match_all(",([^,]*): ([^,]*)")
 for (i in 1: length(attl)){
   attl[[i]] <- attl[[i]][,2:3]
+  }
+
+for (i in 1: length(attl)){
+  attl[[i]]= as.data.frame(attl[[i]])
+  }
+for (i in 1: length(attl)){
+  rownames(attl[[i]]) <- attl[[i]][,1]
 }
-merged.data.frame = Reduce(function(...) merge(..., by=0,all=T), attl)
+for (j in 1: length(attl)){
+  colnames(attl[[j]])= c(2*j-1, 2*j)
+}
+
+dat <- attl[[1]]
+for (i in 2:803){
+    merge <- merge(merge, attl[[i]], by = "row.names", all.x= TRUE) 
+    rownames(merge) <- merge$Row.names
+    merge <- merge %>% select(-Row.names)
+}
 ```
 
-Separate attributes
+More cleaning up after merging
 
 ```{r}
-crit <- "Noise|Price R|Alc|Outdoor|Take-|Deli|Attire"
-sepatt <- att %>%
-  separate(attributes, into = c("a","b","c","d","e","f","g","h","i"), sep = crit)
-sepatt1 <- 
-  sepatt %>% 
-  lapply(function(s) {
-    gsub(",.*","", s)
-    }) %>%
-  as.data.frame()
-sepatt2 <- sepatt1 %>% select(b,c,d,e,f,g,h,i) %>% t() %>% as.data.frame()
-sepatt3 <- sepatt2 %>% arrange(V1:V803)
 
-sepatt4 <- sepatt3 %>% t() %>% as.data.frame()
+satt <- merge %>% t() %>% as.data.frame()
+c <- 1: nrow(satt)
+satt2 <- satt[(c%%2==0), ]
+```
 
-sepatt4 <- sepatt4 %>% unite(V,V1,V2,V3,V4,V5,V6,V7)
+Joining stars and 
 
-satt <- cbind(sepatt1,sepatt4)
+```{r}
+satt3 <- satt
 
-satt <- satt %>% 
-select(name,city,V,stars)
 
-YY <- satt %>% group_by(V) %>% tally(sort=TRUE)
 
