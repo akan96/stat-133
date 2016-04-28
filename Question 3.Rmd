@@ -13,7 +13,7 @@ fig_width: 5
 library(DataComputing)
 ```
 *Source file* 
-```{r, results='asis', echo=FALSE}
+  ```{r, results='asis', echo=FALSE}
 includeSourceDocuments()
 ```
 <!-- Don't edit the material above this line -->
@@ -34,74 +34,74 @@ Cleaning up the data
 
 ```{r}
 Businesses <- 
-  Businesses%>%
-  mutate(attributes= gsub("u'","",attributes),
-         categories= gsub("u'","",categories),
-         neighborhoods=gsub("u'","",neighborhoods))
+Businesses%>%
+mutate(attributes= gsub("u'","",attributes),
+categories= gsub("u'","",categories),
+neighborhoods=gsub("u'","",neighborhoods))
 ```
 
 Filter for open restaurants
 
 ```{r}
 Open <- 
-  Businesses %>% 
-  filter(grepl("Restaurant",categories), as.character(open) == "True")
+Businesses %>% 
+filter(grepl("Restaurant",categories), as.character(open) == "True")
 ```
 
 
 Inner-join to form Reviews table
 ```{r}
 Reviews <- Open %>%
-  select(name,business_id,city,categories,attributes) %>%
-  inner_join(Complete[,-(1:4)],by= c("business_id"="business_id"))
+select(name,business_id,city,categories,attributes) %>%
+inner_join(Complete[,-(1:4)],by= c("business_id"="business_id"))
 ```
 
 
 Average reviews
 ```{r}
 AvgReviews <- 
-  Reviews %>%
-  select(name, city, categories, attributes, stars) %>% 
-  group_by(name) %>%
-  mutate_each(funs(mean(., na.rm=TRUE)), stars) %>% 
-  arrange(desc(stars)) 
+Reviews %>%
+select(name, city, categories, attributes, stars) %>% 
+group_by(name) %>%
+mutate_each(funs(mean(., na.rm=TRUE)), stars) %>% 
+arrange(desc(stars)) 
 Avg <- 
-  AvgReviews[!duplicated(AvgReviews[,1]),]
+AvgReviews[!duplicated(AvgReviews[,1]),]
 ```
 
 Cleanup categories
 
 ```{r}
 cat <- Avg %>% 
-  select(-attributes) %>% 
-  mutate(categories= gsub("Restaurants","",categories))
+select(-attributes) %>% 
+mutate(categories= gsub("Restaurants","",categories))
 cat <- cat %>% 
-  mutate(categories= gsub("'","",categories),
-         categories= gsub(", ]","",categories),
-         categories= gsub("]","",categories),
-         categories= gsub("\\[","",categories))
+mutate(categories= gsub("'","",categories),
+categories= gsub(", ]","",categories),
+categories= gsub("]","",categories),
+categories= gsub("\\[","",categories))
 ```
 
 Separating into different categories
 
 ```{r} 
 sepcat <- cat %>%
-  separate(categories, into = c("prim", "sec", "tert", "quart"),sep = ",", extra= "merge")
- 
+separate(categories, into = c("prim", "sec", "tert", "quart"),sep = ",", extra= "merge")
+
 sepcat1 <- 
-  sepcat %>% group_by(prim) %>% summarise(avg= mean(stars))
+sepcat %>% group_by(prim) %>% summarise(avg= mean(stars))
 
 ```
 
 Cleanup attributes
 ```{r}
 att <- Avg %>% 
-  select(-categories) %>% 
-  mutate(attributes= gsub("Restaurants","",attributes))
+select(-categories) %>% 
+mutate(attributes= gsub("Restaurants","",attributes))
 att <- att %>% 
-  mutate(attributes= gsub("'","",attributes),
-         attributes= gsub("\\{","",attributes),
-         attributes= gsub("\\}","",attributes))
+mutate(attributes= gsub("'","",attributes),
+attributes= gsub("\\{","",attributes),
+  attributes= gsub("\\}","",attributes))
 ```
 
 
@@ -110,24 +110,24 @@ Obtaining tidy table of attributes
 ```{r}
 attl <- att$attributes %>% str_match_all(",([^,]*): ([^,]*)")
 for (i in 1: length(attl)){
-  attl[[i]] <- attl[[i]][,2:3]
-  }
+attl[[i]] <- attl[[i]][,2:3]
+}
 
 for (i in 1: length(attl)){
-  attl[[i]]= as.data.frame(attl[[i]])
-  }
+attl[[i]]= as.data.frame(attl[[i]])
+}
 for (i in 1: length(attl)){
-  rownames(attl[[i]]) <- attl[[i]][,1]
+rownames(attl[[i]]) <- attl[[i]][,1]
 }
 for (j in 1: length(attl)){
-  colnames(attl[[j]])= c(2*j-1, 2*j)
+colnames(attl[[j]])= c(2*j-1, 2*j)
 }
 
 dat <- attl[[1]]
 for (i in 2:803){
-    merge <- merge(merge, attl[[i]], by = "row.names", all.x= TRUE) 
-    rownames(merge) <- merge$Row.names
-    merge <- merge %>% select(-Row.names)
+merge <- merge(merge, attl[[i]], by = "row.names", all.x= TRUE) 
+rownames(merge) <- merge$Row.names
+merge <- merge %>% select(-Row.names)
 }
 ```
 
@@ -146,11 +146,8 @@ Joining names, stars back to attributes
 ```{r}
 satt3 <- cbind(att, satt2)
 rownames(satt3) <- 1:803
-  
+
 satt3 <- satt3 %>% 
-  group_by(` Price Range`) %>% 
-  mutate(avg= sum(stars))
+group_by(` Price Range`) %>% 
+mutate(avg= sum(stars))
 ```
-
-
-
