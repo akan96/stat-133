@@ -86,9 +86,8 @@ Separating into different categories
 sepcat <- cat %>%
 separate(categories, into = c("prim", "sec", "tert", "quart"),sep = ",", extra= "merge")
 
-sepcat1 <- 
-sepcat %>% group_by(prim) %>% summarise(avg= mean(stars))
-
+sepcat1 <- sepcat %>% group_by(prim,sec) %>% summarize(avg= mean(stars), sd= sd(stars))
+head(sepcat1)
 ```
 
 Cleanup attributes
@@ -113,6 +112,8 @@ attl[[i]] <- attl[[i]][,2:3]
 for (i in 1: length(attl)){
 attl[[i]]= as.data.frame(attl[[i]])
 }
+attl[[96]] <- attl[[1]]
+attl[[114]] <- attl[[1]]
 for (i in 1: length(attl)){
 rownames(attl[[i]]) <- attl[[i]][,1]
 }
@@ -125,7 +126,7 @@ colnames(attl[[j]])= c(2*j-1, 2*j)
 Merge list of dataframes
 
 ```{r}
-dat <- attl[[1]]
+merge<- attl[[1]]
 for (i in 2:803){
 merge <- merge(merge, attl[[i]], by = "row.names", all.x= TRUE) 
 rownames(merge) <- merge$Row.names
@@ -157,7 +158,7 @@ Start analysis of attributes, filtering out ones that are not used.
 ```{r}
 
 satt4 <- satt3[,-c(4,11,15,16,19,24,28,29,31,32,36,37:41)]
-
+satt4 <- satt4 %>% ungroup()
 alcfull <- satt4 %>% filter(` Alcohol`== "full_bar") %>% summarize(avg= mean(stars), stdev= sd(stars))
 alcbeer <- satt4 %>% filter(` Alcohol`== "beer_and_wine") %>% summarize(avg= mean(stars), stdev= sd(stars))
 alcnone <- satt4 %>% filter(` Alcohol`== "none") %>% summarize(avg= mean(stars), stdev= sd(stars))
@@ -226,7 +227,7 @@ rownames(attire) <- c("formal","dressy", "casual")
 ```
 
 
-Price Range {1, 2, 3, 4}
+6. Price Range {1, 2, 3, 4}
 
 ```{r}
 one <- satt4 %>% filter(` Price Range` == 1) %>% summarize(avg= mean(stars), stdev= sd(stars))
@@ -238,7 +239,7 @@ price <- rbind(one,two,three,four)
 rownames(price) <- rbind("one","two","three","four")
 ```
 
-6. Meals: {breakfast, brunch, lunch, dinner, late night}
+7. Meals: {breakfast, brunch, lunch, dinner, late night}
 
 ```{r}
 
@@ -253,7 +254,7 @@ rownames(meals) <- c("breakfast","brunch","lunch","dinner","latenight")
 ```
 
 
-7. Counter/Delivery
+8. Counter/Delivery
 
 ```{r}
 
@@ -268,4 +269,11 @@ rownames(alternative) <- c("counter","notcounter","delivery","notdelivery")
 
 ```
 
+Combining all
 
+```{r}
+
+all <- rbind(attalc,ambience,good,noise,attire,price, meals, alternative)
+head(all,50)
+
+```
