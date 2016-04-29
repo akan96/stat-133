@@ -1,5 +1,5 @@
 ---
-title: "Question 3"
+  title: "Question 3"
 author: "Avery Kan"
 date: "Apr 25, 2016"
 output: 
@@ -13,7 +13,7 @@ fig_width: 5
 library(DataComputing)
 ```
 *Source file* 
-```{r, results='asis', echo=FALSE}
+  ```{r, results='asis', echo=FALSE}
 includeSourceDocuments()
 ```
 <!-- Don't edit the material above this line -->
@@ -24,7 +24,7 @@ includeSourceDocuments()
 ## Calculate the standard deviation of the ratings for each type of restaurant
 ```{r}
 Businesses <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Businesses.csv")
-Complete <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Complete.csv", comment.char="#")
+Complete <- read.file("C:/Users/user/Google Drive/Stat 133 Final Project/Complete.csv")
 ```
 
 
@@ -43,7 +43,7 @@ Filter for open restaurants
 ```{r}
 Open <- 
 Businesses %>% 
-filter(grepl("Restaurant",categories), as.character(open) == "True")
+filter(grepl("Restaurant",categories))
 ```
 
 
@@ -112,8 +112,11 @@ attl[[i]] <- attl[[i]][,2:3]
 for (i in 1: length(attl)){
 attl[[i]]= as.data.frame(attl[[i]])
 }
-attl[[96]] <- attl[[1]]
-attl[[114]] <- attl[[1]]
+for (i in 1: length(attl)){
+if (ncol(attl[[i]]) < 2){
+  attl[[i]] <- attl[[1]]
+}
+}
 for (i in 1: length(attl)){
 rownames(attl[[i]]) <- attl[[i]][,1]
 }
@@ -126,11 +129,21 @@ colnames(attl[[j]])= c(2*j-1, 2*j)
 Merge list of dataframes
 
 ```{r}
-merge<- attl[[1]]
-for (i in 2:803){
-merge <- merge(merge, attl[[i]], by = "row.names", all.x= TRUE) 
-rownames(merge) <- merge$Row.names
-merge <- merge %>% select(-Row.names)
+merge1 <- attl[[1]]
+for (i in 2:635){
+  merge1 <- merge(merge1, attl[[i]], by = 0 ,all.x= TRUE)
+  rownames(merge1) <- merge1$Row.names
+  merge1 <- merge1 %>% select(-Row.names)
+  }
+
+```
+
+```{r}
+merge2 <- attl[[635]]
+for (i in 636:1318){
+merge2 <- merge(merge2, attl[[i]], by = "row.names", all.x= TRUE) 
+rownames(merge2) <- merge$Row.names
+merge2 <- merge2 %>% select(-Row.names)
 }
 ```
 
@@ -209,8 +222,8 @@ noise <- rbind(very_loud,loud,average,quiet)
 rownames(noise) <- c("very loud","loud", "average","quiet")
 
 noise %>% ggplot(aes(x=1:4, y= avg)) +
-  geom_point(aes(size=3))+
-  stat_smooth()
+geom_point(aes(size=3))+
+stat_smooth()
 ```
 
 5. Attire {formal, dressy, casual}
@@ -263,7 +276,7 @@ notcounter <- satt4 %>% filter(` Order at Counter` == "False")%>% summarize(avg=
 
 delivery <- satt4  %>%  filter(` Delivery` == "True")%>% summarize(avg= mean(stars), stdev= sd(stars))
 notdelivery <-satt4 %>% filter(` Delivery` == "False")%>% summarize(avg= mean(stars), stdev= sd(stars))
- 
+
 alternative <- rbind(counter,notcounter,delivery,notdelivery)
 rownames(alternative) <- c("counter","notcounter","delivery","notdelivery")
 
