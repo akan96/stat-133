@@ -1,5 +1,5 @@
 ---
-  title: "Question 3"
+title: "Question 3"
 author: "Avery Kan"
 date: "Apr 25, 2016"
 output: 
