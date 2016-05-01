@@ -86,4 +86,5 @@ rest_Income <- inner_join(restaurants, Zip.Income, by= c("ZipCode"= "Zip"))
 restaurants <- rest_Income %>% 
   extractMatches("([:digit:])",attributes, price=1)
 
-restaurants
+rest %>% ggplot(aes(avgStars))+ geom_density(color= "gray", fill = "gray", alpha= .75)+
+facet_grid(Type~state)
