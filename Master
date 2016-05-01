@@ -1,0 +1,67 @@
+---
+title: "Stat 133 Final Project"
+author: "Elly Wang, Peter Zhou, Xuyu Zhang, Yujie Wang, Avery Kan"
+date: "Apr 25, 2016"
+output: 
+  html_document:
+  fig_height: 3
+fig_width: 5
+---
+  <!-- Don't edit in between this line and the one below -->
+
+```{r include=FALSE}
+# Don't delete this chunk if you are using the DataComputing package
+library(DataComputing)
+library(geosphere)
+
+```
+
+```{r}
+
+
+#Load Data || Change directory
+bdata <-  Businesses
+cdata <- Complete
+#Join Restaurants and Average Reviews
+restaurants <- bdata %>% filter(Restaurant==TRUE)
+id_stars <- cdata %>% group_by(business_id) %>% 
+  summarize(avgStars = mean(stars, na.rm=TRUE), numReview = n())
+restaurants <- left_join(restaurants, id_stars, by= c("business_id"= "business_id"))
+
+#Add Zipcode
+restaurants <- restaurants %>% 
+  extractMatches("[:space:]([:digit:]+)$", full_address, ZipCode=1)
+restaurants$ZipCode <- strtoi(restaurants$ZipCode)
+restaurants <- restaurants %>% filter(ZipCode>10, !is.null(ZipCode))
+
+restaurants <- restaurants %>% 
+  mutate(categories = gsub("'|^\\[|\\]$|","",categories)) %>% 
+  mutate(categories = gsub("^u","",categories)) %>% 
+  mutate(categories = gsub(", u", "," ,categories))
+
+#Getting all categories
+lstcat = c()
+cate <- restaurants$categories
+for (i in 1:length(restaurants$categories)){
+  lstcat = c(unlist(strsplit(cate[i], split=",")),lstcat)
+}
+unique_categories <- unique(lstcat)
+
+checkcategory <- function(category){
+  pattern = paste("(", category, ")", sep="")
+  Categories <- grepl(pattern, restaurants$categories) 
+  return(Categories)
+}
+
+#adding category variables
+original_names <- names(restaurants)
+new_names <- c(original_names, unique_categories)
+for (cat in unique_categories){
+  vec <- checkcategory(cat)
+  restaurants<- cbind(restaurants, vec)
+}
+names(restaurants)<- new_names
+  
+
+
+
