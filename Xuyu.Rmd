@@ -34,9 +34,9 @@ mid_west <- c("IL", "WI")
 north_east <- c("PA")
 
 #add region variable
-empty <- rep(NA, 2751)
+empty <- rep(NA, length(cat))
 cat$region <- empty
-for (i in 1:2751) {
+for (i in 1:length(cat)) {
   if (cat[i,8] %in% west)
     cat[i,11] <- "west"
   else if (cat[i,8] %in% south)
@@ -124,14 +124,28 @@ for (i in 1:2751) {
 
 ```{r}
 cat <- cat %>% 
+  filter(!is.na(cat$food))
 ```
 
 
 ```{r}
 #graph plot
+#ratings for each region and food type
 ggplot(cat, aes(x=stars)) + 
   geom_density(color="gray", fill="gray", alpha=.75) +
-  facet_grid(food~region)
+  facet_grid(food~region) +
+  xlab("Rating") + ylab("Density")
+
+#comparison
+ggplot(cat, aes(x=stars, group=region) ) + 
+  geom_density(aes(color=region, fill=region), alpha=.5) +
+  facet_grid(food~.)
+
+#Variance
+ggplot(cat, aes(y=stars, x=food)) + 
+  geom_boxplot(aes(color=food, fill=food), alpha=.25, outlier.size=1, outlier.colour="gray") + 
+  ylab("Food Type") + xlab("Rating") + 
+  facet_wrap(~region)
 ```
 
 
