@@ -122,9 +122,17 @@ for (i in 1:2751) {
 }
 ```
 
+```{r}
+cat <- cat %>% 
+```
 
 
-
+```{r}
+#graph plot
+ggplot(cat, aes(x=stars)) + 
+  geom_density(color="gray", fill="gray", alpha=.75) +
+  facet_grid(food~region)
+```
 
 
 
