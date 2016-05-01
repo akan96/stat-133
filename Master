@@ -59,14 +59,15 @@ mideastf <- c("Middle Eastern", "Afghan", "Falafel", "Kosher", "Pakistan", "Pers
 africanf <- c("African", "Ethiopian", "Soul Food", "Moroccan")
 americanf <- c("American(New)", "American(Traditional)","Cajun", "Hawaiian", "Southern", "Burgers", "Fast Food", "Hot Dogs", "Sandwishes")
 latinamericaf <- c("Latin American", "Caribbean", "Cuban", "Mexican", "Peruvian", "Argentine", "Colombian")
-europef <- c("Belgain", "French", "German", "Greek", "Hungarian", "Irish", "Italian", "Mediterranean", "Polish", "Portuguese", "Russian", "Spanish", "Pizza")
+europef <- c("Belgian", "French", "German", "Greek", "Hungarian", "Irish", "Italian", "Mediterranean", "Polish", "Portuguese", "Russian", "Spanish", "Pizza")
 
 Asian <- checkcategory(asianf)
 MiddleEastern <- checkcategory(mideastf)
 African <- checkcategory(africanf)
+American <- checkcategory(americanf)
 LatinAmerican <- checkcategory(latinamericaf)
 European <- checkcategory(europef)
-restaurants <- cbind(restaurants, Asian, MiddleEastern, African, LatinAmerican,
+restaurants <- cbind(restaurants, American ,Asian, MiddleEastern, African, LatinAmerican,
                      European)
 
 #have reviews
@@ -74,8 +75,15 @@ restaurants <- restaurants %>% filter(!is.na(numReview))
 
 #Income
 
-restaurants <- restaurants[,-(269:518)]
+restaurants <- restaurants[,-(19:271)]
+restaurants <- restaurants %>% mutate(ifelse(American== TRUE, "American",
+                              ifelse(Asian == TRUE, "Asian", 
+                                     ifelse(MiddleEastern== TRUE, "MiddleEastern",
+                                            ifelse(African == TRUE, "African",
+                                                   ifelse(LatinAmerican == TRUE, "LAmerican",
+                                                          ifelse(European == TRUE, "European", "Other")))))))
 rest_Income <- inner_join(restaurants, Zip.Income, by= c("ZipCode"= "Zip"))
 restaurants <- rest_Income %>% 
   extractMatches("([:digit:])",attributes, price=1)
 
+restaurants
