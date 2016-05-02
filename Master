@@ -1,5 +1,5 @@
 ---
-  title: "Stat 133 Final Project"
+title: "Stat 133 Final Project"
 author: "Elly Wang, Peter Zhou, Xuyu Zhang, Yujie Wang, Avery Kan"
 date: "Apr 25, 2016"
 output: 
@@ -16,7 +16,7 @@ library(DataComputing)
 library(geosphere)
 Businesses <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Businesses.csv")
 Complete <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Complete.csv")
-
+Zip.Income <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Zip Income.csv")
 #Load Data || Change directory
 
 #Join Restaurants and Average Reviews
@@ -74,17 +74,13 @@ restaurants <- cbind(restaurants, American ,Asian, MiddleEastern, African, Latin
 restaurants <- restaurants %>% filter(!is.na(numReview))
 
 #Income
-
-restaurants <- restaurants[,-(19:271)]
-restaurants <- restaurants %>% mutate(ifelse(American== TRUE, "American",
-                              ifelse(Asian == TRUE, "Asian", 
-                                     ifelse(MiddleEastern== TRUE, "MiddleEastern",
-                                            ifelse(African == TRUE, "African",
-                                                   ifelse(LatinAmerican == TRUE, "LAmerican",
-                                                          ifelse(European == TRUE, "European", "Other")))))))
+restaurants <- restaurants %>% mutate(Type =
+                                        ifelse(American== TRUE, "American",
+                                               ifelse(Asian == TRUE, "Asian", 
+                                                      ifelse(MiddleEastern== TRUE, "MiddleEastern",
+                                                             ifelse(African == TRUE, "African",
+                                                                    ifelse(LatinAmerican == TRUE, "LAmerican",
+                                                                           ifelse(European == TRUE, "European", "Other")))))))
 rest_Income <- inner_join(restaurants, Zip.Income, by= c("ZipCode"= "Zip"))
 restaurants <- rest_Income %>% 
   extractMatches("([:digit:])",attributes, price=1)
-
-rest %>% ggplot(aes(avgStars))+ geom_density(color= "gray", fill = "gray", alpha= .75)+
-facet_grid(Type~state)
