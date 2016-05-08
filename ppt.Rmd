@@ -14,8 +14,9 @@ library(DataComputing)
 
 ## Relationships between rating and income, state, food type on Yelp
 <div class="columns-2">
-```{r echo = FALSE}
+```{r echo = FALSE, fig.height=4.5, fig.width=5}
 cat <- read_csv("/Users/Joyce/Desktop/stat-133/Separated_Categories.csv")
+cat <- cat %>% mutate(state=gsub("SC", "NC", state))
 
 #combine states into regions
 state <- cat %>% group_by(state) %>% summarise(count=n())
@@ -101,9 +102,12 @@ for (i in 1:nrow(cat)) {
 }
 
 ggplot(cat, aes(x=stars)) + 
-  geom_density(aes(color=region, fill=region, alpha=.75)) +
-  facet_grid(food~region) +
-  xlab("Rating") + ylab("Density")
+  geom_density(aes(color=state, fill=state, alpha=.75)) +
+  facet_grid(food~state) +
+  xlab("Rating") + ylab("Density") + 
+  ggtitle("Average Ratings for Different Food Type") +
+  theme_light() + 
+  theme(legend.title=element_blank(), legend.text=element_blank(), legend.background=element_blank(), legend.key=element_blank(), panel.grid.minor=element_blank(), plot.title=element_text(size=13.5))
 ```
 
   Key questions:
@@ -137,8 +141,10 @@ ggplot(cat, aes(x=stars)) +
 ## Sample Data
 ```{r echo=FALSE, warning=FALSE}
 ggplot(cat, aes(y=stars, x=food)) + 
-  geom_boxplot(aes(color=region, fill=region), alpha=.25, outlier.size=1, outlier.colour="gray") + 
-  ylab("Food Type") + xlab("Rating") + 
-  facet_wrap(~region)
+  geom_boxplot(aes(color=food, fill=food), alpha=.5, outlier.size=1, outlier.colour="gray") + 
+  ylab("Rating") + xlab("Food Type") + 
+  facet_wrap(~state) +
+  theme(axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  ggtitle("Food Type and Ratings, by state")
 ```
 
