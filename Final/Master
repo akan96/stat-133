@@ -1,0 +1,86 @@
+---
+  title: "Stat 133 Final Project"
+author: "Elly Wang, Peter Zhou, Xuyu Zhang, Yujie Wang, Avery Kan"
+date: "Apr 25, 2016"
+output: 
+  html_document:
+  fig_height: 3
+fig_width: 5
+---
+  <!-- Don't edit in between this line and the one below -->
+
+```{r include=FALSE}
+# Don't delete this chunk if you are using the DataComputing package
+
+library(DataComputing)
+library(geosphere)
+Businesses <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Businesses.csv")
+Complete <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Complete.csv")
+Zip.Income <- read.csv("C:/Users/user/Google Drive/Stat 133 Final Project/Zip Income.csv")
+#Load Data || Change directory
+
+#Join Restaurants and Average Reviews
+restaurants <- 
+  Businesses %>% 
+  filter(grepl("Restaurant",categories))
+id_stars <- Complete %>% group_by(business_id) %>% 
+  summarize(avgStars = mean(stars, na.rm=TRUE), numReview = n())
+restaurants <- left_join(restaurants, id_stars, by= c("business_id"= "business_id"))
+
+#Add Zipcode
+restaurants <- restaurants %>% 
+  extractMatches("[:space:]([:digit:]+)$", full_address, ZipCode=1)
+restaurants$ZipCode <- strtoi(restaurants$ZipCode)
+restaurants <- restaurants %>% filter(ZipCode>10, !is.null(ZipCode))
+
+#Clean up restaurants
+restaurants <- restaurants %>% 
+  mutate(categories = gsub("'|^\\[|\\]$|","",categories)) %>% 
+  mutate(categories = gsub("^u","",categories)) %>% 
+  mutate(categories = gsub(", u", "," ,categories))
+
+#Getting all categories
+lstcat = c()
+cate <- restaurants$categories
+for (i in 1:length(restaurants$categories)){
+  lstcat = c(unlist(strsplit(cate[i], split=",")),lstcat)
+}
+unique_categories <- unique(lstcat)
+
+checkcategory <- function(category){
+  #pattern = paste("(", category, ")", sep="")
+  pattern = paste(category, collapse = "|")
+  Categories <- grepl(pattern, restaurants$categories) 
+  return(Categories)
+}
+
+asianf <- c("Asian Fusion","Chinese","Dim Sum", "Laotian", "Filipino",  "Indian", "Japanese", "Vietnamese", "Korean", "Sushi Bars", "Thai", "Himalayan/Nepalese", "Indonesian", "Mongolian")
+mideastf <- c("Middle Eastern", "Afghan", "Falafel", "Kosher", "Pakistan", "Persian/Iranian", "Lebanese")
+africanf <- c("African", "Ethiopian", "Soul Food", "Moroccan")
+americanf <- c("American(New)", "American(Traditional)","Cajun", "Hawaiian", "Southern", "Burgers", "Fast Food", "Hot Dogs", "Sandwishes")
+latinamericaf <- c("Latin American", "Caribbean", "Cuban", "Mexican", "Peruvian", "Argentine", "Colombian")
+europef <- c("Belgian", "French", "German", "Greek", "Hungarian", "Irish", "Italian", "Mediterranean", "Polish", "Portuguese", "Russian", "Spanish", "Pizza")
+
+Asian <- checkcategory(asianf)
+MiddleEastern <- checkcategory(mideastf)
+African <- checkcategory(africanf)
+American <- checkcategory(americanf)
+LatinAmerican <- checkcategory(latinamericaf)
+European <- checkcategory(europef)
+restaurants <- cbind(restaurants, American ,Asian, MiddleEastern, African, LatinAmerican,
+                     European)
+
+#have reviews
+restaurants <- restaurants %>% filter(!is.na(numReview))
+
+#Income
+restaurants <- restaurants %>% mutate(Type =
+                                        ifelse(American== TRUE, "American",
+                                               ifelse(Asian == TRUE, "Asian", 
+                                                      ifelse(MiddleEastern== TRUE, "MiddleEastern",
+                                                             ifelse(African == TRUE, "African",
+                                                                    ifelse(LatinAmerican == TRUE, "LAmerican",
+                                                                           ifelse(European == TRUE, "European", "Other")))))))
+rest_Income <- inner_join(restaurants, Zip.Income, by= c("ZipCode"= "Zip"))
+restaurants <- rest_Income %>% 
+  extractMatches("([:digit:])",attributes, price=1)

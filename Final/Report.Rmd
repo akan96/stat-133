@@ -1,0 +1,810 @@
+---
+title: "Yelp Trends"
+author: 'Foodie: Avery Kan, Jingya(Elly) Wang, Yujie Wang, Xuyu Zhang, Haochen Zhou'
+date: "May 7, 2016"
+output: html_document
+---
+```{r, include =FALSE}
+
+library(devtools)
+library(choroplethr)
+library(choroplethrZip)
+library(gridExtra)
+library(DataComputing)
+#rest <- read.csv("/Users/EllyWang/stat-133/rest.csv")
+```
+
+
+```{r, include = FALSE}
+##PART I
+#Import Data from CSV files
+bdata <- read.csv("/Users/EllyWang/Documents/School/Stats 133/Yelp/Businesses.csv")
+cdata <- read.csv("/Users/EllyWang/Documents/School/Stats 133/Yelp/Complete.csv")
+MedianIncome <- read.csv("/Users/EllyWang/stat-133/ZipMedianIncome.csv")
+
+##PART II: Joining data tables and create necessary variables
+#Join Restaurants and Average Reviews
+id_stars <- cdata %>% group_by(business_id) %>% 
+  summarize(avgStars = mean(stars, na.rm=TRUE), numReview = n())
+bdata <- left_join(bdata, id_stars, by= c("business_id"= "business_id"))
+
+#Add Zipcode
+bdata <- bdata %>% 
+  extractMatches("[:space:]([:digit:]+)$", full_address, ZipCode=1)
+bdata$ZipCode <- strtoi(bdata$ZipCode)
+bdata <- bdata %>% filter(ZipCode>10, !is.null(ZipCode))
+
+#Clean categories, remove unnecessary marks
+bdata <- bdata %>% 
+  mutate(categories = gsub("'|^\\[|\\]$|","",categories)) %>% 
+  mutate(categories = gsub("^u","",categories)) %>% 
+  mutate(categories = gsub(", u", "," ,categories)) %>%
+  mutate(state = gsub("SC", "NC", state))
+#Filter out restaurants
+restaurants <- bdata[grepl("Restaurants", bdata$categories),]
+
+
+##PART III: Add Categories
+
+#Function that puts TRUE if category is present for the given business
+checkcategory <- function(category){
+  #pattern = paste("(", category, ")", sep="")
+  pattern = paste(category, collapse = "|")
+  Categories <- grepl(pattern, restaurants$categories) 
+  return(Categories)
+}
+
+#Create 6 Large Categories for Food Types
+asianf <- c("Asian Fusion","Chinese","Dim Sum", "Laotian", "Filipino",  "Indian", "Japanese", "Vietnamese", "Korean", "Sushi Bars", "Thai", "Himalayan/Nepalese", "Indonesian", "Mongolian")
+mideastf <- c("Middle Eastern", "Afghan", "Falafel", "Kosher", "Pakistan", "Persian/Iranian", "Lebanese")
+africanf <- c("African", "Ethiopian", "Soul Food", "Moroccan")
+americanf <- c("American(New)", "American(Traditional)","Cajun", "Hawaiian", "Southern", "Burgers", "Fast Food", "Hot Dogs", "Sandwishes")
+latinamericaf <- c("Latin American", "Caribbean", "Cuban", "Mexican", "Peruvian", "Argentine", "Colombian")
+europef <- c("Belgain", "French", "German", "Greek", "Hungarian", "Irish", "Italian", "Mediterranean", "Polish", "Portuguese", "Russian", "Spanish", "Pizza")
+
+#Add columns indicators for each type of food
+Asian <- checkcategory(asianf)
+MiddleEastern <- checkcategory(mideastf)
+African <- checkcategory(africanf)
+American <- checkcategory(americanf)
+LatinAmerican <- checkcategory(latinamericaf)
+European <- checkcategory(europef)
+restaurants <- cbind(restaurants, Asian, MiddleEastern, African, LatinAmerican,
+                     European)
+#Add variable Type
+restaurants <- restaurants %>% mutate(Type = ifelse(American== TRUE, "American",
+                                                    ifelse(Asian == TRUE, "Asian", 
+                                                           ifelse(MiddleEastern== TRUE, "MiddleEastern",
+                                                                  ifelse(African == TRUE, "African",
+                                                                         ifelse(LatinAmerican == TRUE, "LAmerican",
+                                                                                ifelse(European == TRUE, "European", "Other")))))))
+
+#Filter out those that have reviews
+restaurants <- restaurants %>% filter(!is.na(numReview))
+
+
+
+##PART IV: Add Income Information 
+#Adding Income
+rest_Income <- left_join(restaurants, MedianIncome, by= c("ZipCode"= "Zip"))
+restaurants <- rest_Income %>% 
+  extractMatches("([:digit:])",attributes, price=1)
+
+rest = restaurants
+
+```
+
+
+### Introduction 
+Nowadays, Yelp is an inevitable part of our lives. It provides first-hand business information and serves as a platform to rate and share experiences, so it is not surprising that Yelp also has an enormous database containing information of key features of businesses such as reviews, stars, ambience and other critical information. This database not only allows consumers to make wise decisions but also businesses to receive interactive feedback. 
+
+In this project, we limited our scope into restaurants and examined different relationships between ratings, income, state and type of food. Through our experiences with Yelp, we noticed that ratings and reviews are two key factors in potential customers' decision making process. Thus we identified three key questions:
+
+1.	What is the relationship between the type of restaurant and its price range by state?
+2.	What is the relationship between the type of restaurant and ratings by state?
+3.	What is the relationship between ratings, types and income?
+
+Prior to answering these questions, we created state maps of income by quartiles and number of restaurants by these income quartiles which clarifies the situation. 
+
+In answering the questions proposed, we converted the JSON file from Yelp into tidy tables and then divided regions into six states: AZ, IL, NC, NV, PA, WI. We separated different cuisines into six types of restaurants: African, American, Asian, European, Latin American, Middle Eastern. For each state, we examine the relationship between each type of restaurant and factors such as price range and income.  To visualize and analyze the results, we used a variety of plots such as barplots, scatter plots, boxplots, density plots and maps. The variety of plots enables us to have a better understanding of the relationships andmake insightful analysis. 
+
+Since the six types of restaurants we identified covers most cuisines, it is helpful for us to know people's preferences for each type of food in different states. Moreover, it is interesting to discover the relationship between income and ratings because it helps us uncover whether socioeconomic status affects ratings.  
+
+***   
+
+### Data Collection 
+In order to collect data about Yelp reviews, we used the data from the Yelp Dataset Challenge. The data were initially contained in two large JSON files, which include 2.2 million reviews, 591k tips by 552k users for 77k businesses. One of the JSON files contained business information such as business ID, full address, categories, neighborhood, city, state, and other attributes of the businesses such as the ambience, price range, food type, stars etc. The second JSON file contained review information, such as business id, reviewer id, rating, and text of the review. Overall, the data is sourced from 10 large cities (Edinburgh, Karlsruhe, Montreal, Waterloo, Pittsburg, Charlotte, Urbana-Champaign, Phoenix, Las Vegas and Madison) from 4 different countries (U.K, Germany, Canada and U.S.) 
+With a large dataset and detailed information for the businesses, we seek to comprehensively analyze the relationships between ratings, income, type of food the restaurant offers, and location of the restaurants on Yelp.   
+
+Sinc JSON files are not R-friendly, we used Python to convert them into csv files, which are then imported into R for data cleaning and analysis. The focus of our project is only on those restaurants in the United States. Therefore, from the initial imported csv data frame, we created a tidy data table called `restaurants`, filtering out the businesses that had a "restaurants" tag in the categories excluding addresses with zip codes. (Appendix Part II) 
+
+For the purpose of our analysis, we grouped more than 50 categories of food into 6 main groups: African, American, Asian, European, Latin American, Middle Eastern and other (R code in the Appendix). For each restaurant, we indicated whether the restaurants fell into any of the categories with `TRUE` and `FALSE` indicators, then we filtered the factors into a categorical variable called `Type`, which includes restaurants with at least one categorical indicator as true.
+
+In addition to the Yelp's data set, we also collected the mean and median household income information from the University of Michigan's Population Studies Center [http://www.psc.isr.umich.edu/dis/census/Features/tract2zip/].The data contains the income information separated by zip codes from the Census Bureau. This was joined to the first table by zip code. 
+   
+***
+
+
+## Analysis and Visualization
+1. Map of income by quartiles of each state.
+
+How do the average ratings of restaurants in each region of the state compare with the median income in the given region? We will be looking at the map of the average ratings and the map of income for each metropolitan area side by side and see if we can find any interesting relationship between the two factors. To graph the maps, we divided up our data by Zip Code regions and joined the data table for median income with the restaurants that has average ratings. By using the choroplethr package, we were able to graph the medina household income and average restaurant ratings on maps of the metropolitan areas that we have data for and compare them side by side. For the income data, we divided the income data for all the regions we have in our data into 4 even quartiles, using the data for 1st quarter, median, and 3rd quarter levels as dividing points.
+
+```{r, echo = FALSE, message=FALSE, warning = FALSE,two_plots_same_size_side_by_side}
+ZipCodeRatings <- rest %>% 
+  group_by(ZipCode) %>%
+  summarize(avgReview = mean(avgStars, na.rm = TRUE))
+
+zip_state <- rest %>% select(ZipCode, state)
+zip_state <- unique(zip_state)
+
+ZipCodeRatings <- left_join(ZipCodeRatings, zip_state, by = c("ZipCode" = "ZipCode"))
+
+```
+
+```{r, echo = FALSE, message=FALSE, warning = FALSE}
+
+ZipCodeRatings <- ZipCodeRatings %>% mutate(region = as.character(ZipCode))
+ZipCodeRatings <- ZipCodeRatings %>% mutate(value = avgReview)
+
+
+not_included_zip <- c(28246, 85218, 85219, 85220, 85222, 85228, 85232, 85239, 85242, 85358, 85378, 89152)
+ZipCodeRatings <- ZipCodeRatings %>% filter(! region %in% not_included_zip)
+```
+
+First, we looked at the map for Charlotte Metropolitan Area. 
+
+```{r, echo = FALSE, message=FALSE,warning = FALSE}
+rest <- rest %>% mutate (newvar = as.character(Median..))
+rest <- rest %>% cbind(MedIncome= gsub(",", "",rest$newvar)) %>%
+  mutate(MedIncome = strtoi(MedIncome))
+
+quantiles <- quantile(rest$MedIncome, na.rm =TRUE)
+
+Income_quart <- rest %>% 
+  mutate (Quantile = ifelse(MedIncome < quantiles[1], 1,
+                            ifelse(MedIncome < quantiles[2], 2,
+                                   ifelse(MedIncome < quantiles[3], 3,
+                                          ifelse(MedIncome <quantiles[4],4,5)))))
+
+Income_Zip <- Income_quart %>% mutate(region = ZipCode, value = Quantile) %>%
+  select(region, value, state) 
+Income_Zip <- unique(Income_Zip)
+
+p1<-Income_Zip %>% 
+  filter(state == "NC") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Charlotte-Concord-Gastonia, NC-SC",
+                 title = "Income for Charlotte Area")
+p2<- ZipCodeRatings %>% filter(state == "NC") %>% 
+  zip_choropleth(msa_zoom = "Charlotte-Concord-Gastonia, NC-SC",
+                 title = "Avg Ratings for Charlotte Area")
+grid.arrange(p1,p2,ncol=2)
+```
+  
+By looking at the graph of income and average ratings side-by-side, we observe that income and average ratings do not have a consistent correlation. Northwestern and Northeastern parts of Charlotte is in the lower quartile for income, but the rating of restaurants there is slightly above average. The southern part of Charlotte has both fairly high earning communities and also highly rated restaurants. In other parts of Charlotte, the ratings and income are bothe around average. The lack of obvious correlation shown in Charlotte is probably due to the fact that Charlotte communites are fairly connected and small, so many people would travel to other zip code regions for food. As a result, there would not be an obvious relationship between income quartile and the average ratings of restaurants.  
+
+Next, we looked at Pittsburgh, which is located in the Northeast. 
+```{r, echo = FALSE, message=FALSE,warning = FALSE}
+p1<-Income_Zip %>% 
+  filter(state == "PA") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Pittsburgh, PA",
+                 title = "Income for Pittsburgh Area")
+p2<- ZipCodeRatings %>% filter(state == "PA") %>% 
+  zip_choropleth(msa_zoom = "Pittsburgh, PA",
+                 title = "Avg Ratings for Pittsburgh Area")
+grid.arrange(p1,p2,ncol=2)
+```
+
+Looking at the graphs closely, we noticed that the middle part of the city has generally above average ratings for restaurants. However, the income quartile is the lowest for that part of the city. We believe that this is caused by the fact that the middle downtown region is mostly commercial region with very few residents. Therefore, the restaurants there generall have above average rating but not very high income. The northern and southern parts of Pittsburgh seems to be fairly rich, but the rating data is mostly missing. This suggest that those areas are mainly residential and has very few restaurants. 
+
+Moving towards the Midwest, we looked at Madison. 
+```{r, echo = FALSE, message=FALSE,warning = FALSE}
+p1<-Income_Zip %>% 
+  filter(state == "WI") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Madison, WI",
+                 title = "Income for Madison Area")
+p2<- ZipCodeRatings %>% filter(state == "WI") %>% 
+  zip_choropleth(msa_zoom = "Madison, WI",
+                 title = "Avg Ratings for Madison Area")
+grid.arrange(p1,p2,ncol=2)
+
+```
+  
+From the household median income graph, we noticed that the suburbs of Madison are placed in the top quartile of income, indicating a region with fairly high earnings. Comparing to the map of the average distributions, we don't see the same pattern. Instead, we noticed that there's a strip of region in the middle that has above average ratings. The lack of similarities in the distribution, again, concludes to the fact that there probably isn't a clear relationship between the income and average ratings of the restaurants in that area. 
+
+Next, we looked closely at a college town in Illinois-- Urbana Champaign:  
+```{r, echo = FALSE, message=FALSE,warning = FALSE}
+p1<-Income_Zip %>% 
+  filter(state == "IL") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Champaign-Urbana, IL",
+                 title = "Income for Urbana-Champaign Area")
+p2<- ZipCodeRatings %>% filter(state == "IL") %>%
+  zip_choropleth(msa_zoom = "Champaign-Urbana, IL",
+                 title = "Avg Ratings for Urbana-Champaign Area")
+grid.arrange(p1,p2,ncol=2)
+```
+
+Comparing and contrasting the colors of each part of the maps, we observe that the two large regions in Urbana-Champaign area show opposite shades of blue, indicating that the higher income area has relatively low average ratings for restaurants in that region. This result is interesting because we expected richer regions to have higher rated restaurants too, since restaurants in rich regions are usually relatively high-class and have to live up to higher standards of the rich people living in that region. However, we realized that the results we obtained may be due to difference between commercial and residential regions.
+
+Next, we moved on to looking at the relationship between income and average restaurant ratings for Las Vegas.
+
+```{r echo = FALSE, message=FALSE,warning = FALSE}
+p1 <- Income_Zip %>% 
+  filter(state == "NV") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Las Vegas-Henderson-Paradise, NV",
+                 title = "Income for Las Vegas Area")
+p2<- ZipCodeRatings %>% filter(state == "NV") %>% 
+  zip_choropleth(msa_zoom = "Las Vegas-Henderson-Paradise, NV",
+                 title = "Avg Ratings for Las Vegas Area")
+grid.arrange(p1,p2,ncol=2)
+```
+  
+Looking at the graph for income and average ratings for Las Vegas Area, we can observe that in general, restaurant's ratings are consistent with the median house income in the region, noting that the majority of the ratings and income are above average. Especially in Southern part of Las Vegas, income and ratings are both a lot higher than average. The general above average income and ratings in Las Vegas can be explained by the nature of the city. Las Vegas, as we all know, is a popular tourist place, especially for the casinos and resorts. Therefore, the cities' income is generally high from the tourism, and the ratings are fairly high because of the large amounts of reviews and high standards that they have to live up to for being located in a popular tourist city. 
+  
+Next, we looked at Phenoix, a fairly popular city in the Southwest. 
+```{r, echo = FALSE, message=FALSE,warning = FALSE}
+p1<-Income_Zip %>% 
+  filter(state == "AZ") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Phoenix-Mesa-Scottsdale, AZ",
+                 title = "Income for Phoenix Area")
+p2<- ZipCodeRatings %>% filter(state == "AZ") %>% 
+  zip_choropleth(msa_zoom = "Phoenix-Mesa-Scottsdale, AZ",
+                 title = "Avg Ratings for Phoenix Area")
+grid.arrange(p1,p2,ncol=2)
+```
+
+From the graphs, we noticed that for most regions of Pheonix, the rating and income tend to be on the opposite sides of the spectrum: poor communities tend to have fairly high average ratings for the restaurants. With exception of southwestern Pheonix, where the restaurants' average ratings and median household incomes are both above average. 
+
+After looking at the income and average ratings for each of the six metropolitan areas, we concluded that there's no clear relationship between the two variables due to the fact that ratings are probably affected by other factors such as type of food and the location of the restaurant relative to commercial centers. Therefore, in the next few sections, we will zoom in on each type of food and see if there are any relationship we can find between ratings and the type of food. 
+
+***
+
+2. Number of each type of restaurants and income
+
+From previous section, we see that there's no clear relationship between income and ratings of the restaurant. Therefore, this section, we will look and see if there is some trends between the median household income and the number of each type of restaurants in a given region.
+
+```{r echo =FALSE}
+numRest <- Income_quart %>% group_by(Quantile, Type) %>% summarize(count = n())
+
+
+numRest %>%
+  filter(Type != "Other", !is.na(Quantile)) %>%
+  ggplot(aes(fill = Type, x= Type, y = count)) +
+  geom_bar(position="dodge", stat="identity")+
+  facet_wrap(~ Quantile, nrow= 2) + 
+  theme(axis.text.x = element_blank()) +
+  theme_light() +
+  labs(title = "Count For Each Type of Restaurants For Different Income Regions")
+
+```
+
+Overall, we find that regardless of income regions, the relative numbers of each type of restaurants are fairly same. For example, count for American Restaurants topped the list in each of the income regions, followed by European, then Asian, then Latin American. We find that there are very few African and Middle Eastern food overall. A closer look at the bar graphs revealed that there are more restaurants located in high income regions than each of the lower income regions, with the lowest income region having the lowest count of restaurants. This finding is not very suprising because it makes sense for restaurants to locate in richer areas rather than poor areas because richer people tend to be able to afford to eat out at restaurants than to cook at home. 
+
+Of course, the counts of each type of restaurants in each income quartile regions cannot give us a complete picture of how rating could be affected by food type or income, so next we will take a look at the relationship between the type of restaurant and their price ranges. 
+
+3. Type and Price, by State  
+
+Regardless of the location, the affordablity of the food is an important criteria when it comes to rating. For our next step, we looked at the price ranges of each type of food in each state.  
+```{r, echo = FALSE, message=FALSE, warning = FALSE}
+rest$price <- rest$price %>% as.numeric()
+rest1 <- 
+  rest%>%
+  group_by(Type, state) %>% mutate(avg = mean(price, na.rm= TRUE), sd= sd(price, na.rm = TRUE))
+
+rest1 <- 
+  rest1%>%
+  mutate(upper = avg + sd, lower = avg - sd)
+
+p <- rest1 %>% 
+  filter(Type != "Other") %>% 
+  ggplot(aes(fill = Type, x= Type, y = avg)) +
+  geom_bar(position="dodge", stat="identity")+
+  facet_wrap(~ state, nrow= 2) +
+  labs(y= "Average Price Range")
+
+p <- p + geom_errorbar(aes(ymin = lower, ymax= upper),
+                       position = "dodge" , width = 0.25) +
+  ggtitle("Type and Price, by State")+
+  theme_light()+
+  theme(axis.text.x = element_blank())
+p
+```
+
+Overall, there is a clear trend of African cuisine being the most expensive. This can be explained by its relative scarcity, as seen in the previous section. It is also possible that the cost of production can be high or that the food is not as easily accepted and integrated into the local restaurant scene. On the other hand, it is important not to discount how such restaurants entice many more individuals that want to venture and explore new areas. Therefore, overall the effect is ambiguous; however, there is one major concern, in questioning the statistical significance of the set of data is to be questioned, as there is a low count across all states. It is surprising that three cities show a complete lack of data. 
+
+The next highest prices are seen in European and Middle Eastern restaurants, except in Illinois and Pennsylvania, which can be explained by similar principles of scarcity. Asian and Latin American restaurants have similarly consistent ranges in their relative price levels.  
+
+On the other end of the spectrum, American cuisine is the cheapest overall, in part due to its widespread presence, low costs of production and it being more readily integrated into the local restaurant scene. However, as we will inspect in the next section, the overarching umbrella of "American" cuisine carries many uncertainties in part due to wide regional variations in consumption habits. We can also ask ourselves- What exactly is American cuisine? An image that presents itself is that of the fusion and mixture of cultures and customs that make up the diverse image of modern American society.  
+
+```{r, echo =FALSE, message=FALSE, warning = FALSE}
+rich <- rest1%>% 
+  filter(price > 2) %>%
+  group_by(state, price) %>% 
+  tally(sort = TRUE)
+
+count <- rest1 %>% group_by(state) %>% tally()
+
+richcount  <-  inner_join(rich,count, by = "state")
+richcount <- richcount %>% mutate(richratio = 100* n.x/n.y) 
+
+q <- richcount %>% 
+  ggplot(aes(state, richratio))+
+  geom_point(size= 4, color= "darkgreen")+
+  theme_light()+
+  ggtitle("Expensive Restaurants, by State")+
+  labs(x= "State", y= "percent 3 and 4 stars")
+q
+```
+
+After inspecting the 1 to 2 star range, which contains most of the data, we decided to look at the expensive restaurants, namely 3 and 4 dollar signs. The graph below shows the percentage of such restaurants, indexed by state, with the top dot showing four dollar signs and the bottom three. From this, it is clear that Pennsylvania has the most expensive restaurants, followed by North Carolina and Wisconsin. The trend can generally be described as a slow decreasing curve from the east to west coast. 
+
+***
+4.   Rating, Type, State  
+
+What is the relationship between rating, type of restaurant and state? Which type of food has the highest or lowest average rating in each state?  Are the average ratings consistent regardless of type of restaurant and state? Or do average ratings depend on type of restaurant and state? 
+
+Theoretically, average ratings vary in states by different types of restaurants. For example, we assume that in states that have high Asian population, average ratings may be higher for Asian restaurants than African restaurants. But does the reality prove our assumption? Quantitatively, we separated average ratings into 5 levels from level 1 to level 5 (on the y axis) and used a boxplot to relate average ratings to types of restaurants: African, American, Asian, European, Latin American, Middle Eastern (on the x axis) to explore the relationship between them.
+```{r, message=FALSE, echo = FALSE, warning = FALSE}
+rest %>% ggplot(aes(Type, avgStars)) + 
+  geom_boxplot(aes(col = Type)) + 
+  facet_wrap(~state) + 
+  theme_light() + 
+  theme(axis.text.x = element_blank()) +
+  labs(title = "Type and Rating, by State", x = "Type of Restaurant", y = "Average Ratings")
+```
+To analyze the relationship between average ratings of different types of restaurants in each state , we inspect the average ratings and types of restaurant in six states (AZ, IL, NC, NV, PA, WI). Omitting outliers, we can make the following observations:
+  
+Firstly, we find that African restaurants have relatively higher ratings. The rating is on average 4 in AZ, NC, NV and WI. However, there are not enough African restaurants in IL and PA. Small sample sizes may be misleading but overall, African food has the highest average ratings. 
+
+Secondly, average ratings for American restaurants have the biggest variation, respectively: 3, 2.5, 3, 2.8, 2.5, 2.3, 3.5 with a maximum of 3.5 and minimum of 2.3. The large sample size is due to our combination a wide range of categories: chicken wings, pizza, sandwiches, fast food. The large sample size further proves our conclusion that average ratings for American restaurants in general have the largest variation. Each region has their individual consumption preferences, and likely unique definitions for what consitutes an American meal.
+
+Thirdly, average ratings for Asian restaurants are the most consistent among seven states and the ratings are around 3.5. Before analyzing the data, we assumed that preference and ratings for Asian restaurants may vary in states based on the proportion of Asian population. But the results shows that the average ratings are consistent regardless of other factors. In addition, the average rating for Asian restaurants are quite high in average. 
+Fourthly, average ratings for Middle Eastern restaurants also vary greatly relative to other types of restaurants. Average ratings for Middle Eastern restaurants in six states are respectively: 4, 3.2, 3, 3.5, 3.5, NA, 4. 
+
+Fifthly, we note the most popular type of restaurant. Arizona and Wisconsin favour Middle Eastern restaurants, Illinois favours European restaurants, while North Carolina and Nevada both rate African food highly. In Pennsylvania, European and Latin American restaurants have the highest ratings. 
+
+It is interesting to note that except for WI and NC, American restaurants have the lowest rating. Again, many factors are at play here, also considering the varied smple size. 
+
+
+***
+
+5.  Ratings, Type of Restaurants, and Income   
+
+What is the relationship between average rating, type of restaurants and income? Do people who have higher income tend to give higher average ratings for restaurants? Or are ratings not correlated with income? 
+
+Theoretically, we assume that people with higher income are more picky with food and therefore would give low average ratings. For example, people with higher income will more likely take more factors into consideration such as environment, parking etc before giving star reviews. Quantitatively, we separated average ratings into five levels on the y axis, from the lowest to highest into level 1 to level 5. In addition, we put income on the x axis and used the scatter plot to explore the relationship between average ratings, type of restaurants and income. 
+
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
+rest %>% 
+  ggplot(aes(MedIncome,avgStars))+
+  geom_point()+
+  facet_grid(Type~.)+
+  stat_smooth() +
+  theme_light() + xlab("Income") + ylab("Average Rating")
+```
+
+To further determine whether rating is affected by income and type of restaurants, we look at the scatter plot below with median income on x-axis and average rating on y-axis. We facet the data table into seven types of restaurants (African, American, Asian, European, Latin American, Middle Eastern and other. After ignoring the outliers, we can make the following observations:
+
+Firstly, we can observe a flat horizontal trend between average ratings and income in almost all categories of food. The trend for African restaurants is not completely flat due to the outliers caused by small sample size but the trend persists even after removing the outliers. This implies that there is no direct relation between income and average rating. This observation contradicts our initial assumption and proves that income is not a factor for average ratings of restaurants.
+
+Secondly, based on our first observation, we can also discover that the larger the sample size, the flatter the trend is between average ratings and income. For American, Asian, European, Latin American restaurants, the relationship between average ratings and income is flatter than that in African and Middle Eastern restaurants. Large sample sizes are more convincing in our analysis and they further prove our conclusion that there is no direct relationship between income and average ratings. 
+
+In order to make our observations more convincing, we divide restaurants into four price ranges from the lowest to the highest (1, 2, 3, 4, NA) as labelled on the scatter plot below. The division of different price ranges of restaurants enables us to explore a new topic: Does price range affect people's average ratings on different types of restaurants (African, American, Asian, European, Latin American, Middle Eastern)? 
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+rest %>% ggplot (aes(avgStars)) +
+  geom_density(aes(fill =state, color = state, alpha =0.5)) + 
+  facet_grid(state~Type) +
+  theme_light() +
+  xlab("Average Rating") + 
+  ggtitle("Distribution of Average Ratings for Different Types of Food")
+```
+
+Firstly, we can still observe a flat horizontal trend between average ratings and income for all types of restaurants in different price ranges. This shows that people's average ratings of restaurants are not affected by income, type and price range. The lack of relationship between income and average ratings may be due to the following reasons:
+
+1. People's income does not affect their taste for food. People who have higher income may enjoy a certain type of food as much as people with lower income. For example, people who eat in fancy restaurants often may enjoy fast food occasionally as much as people who have lower income. 
+                                                                
+2. People who have higher income and people who have lower income may go to restaurants that correspond to their income and consumption level. Thus the effect of income and price range of different types of restaurants on people's average ratings is minimized.
+                                                                
+3. People are more likely to give restaurant higher rating based on the quality and price combined. For example, if the quality food in a type of restaurant  meets its price in a certain restaurant, people are more likely to give higher average reviews. If the quality of food in another type of restaurant is relatively low, people are more likely to give lower average reviews
+                                    
+4. People do not usually go to restaurants within their own zip codes. People who have higher income may go to restaurants in other zip codes. For example, for some people who live in rich areas, they may go to other areas to explore different kinds of food. This also shows that people's income does not affect their tastes and preferences for food. 
+
+Overall, ratings reflect individual experiences, transitive and in the moment, rather than a long term trend. 
+
+```{r, echo= FALSE, message = FALSE, warning = FALSE}
+rest %>% 
+  ggplot(aes(MedIncome, avgStars))+
+  geom_point()+
+  facet_grid(Type~price)+
+  stat_smooth() +
+  theme_light() + 
+  labs(x="Income", y="Average Rating")
+```
+
+This graph can serve as a complement for our analysis in #5: Relationship between average ratings and state and type of restaurant. In this graph, our x axis is average ratings. We separated average ratings into five levels, from lowest to highest (level 1-level 5). Our y axis is density, which reflects the density of each type of restaurant. This graph is another representation of the observations we found in analysis #5. 
+
+***
+
+### Conclusion  
+
+Using the restaurant ratings and information such as price range, income, and type of restaurant collected from the JSON files provided by Yelp, we explored the relationship between those . Our analysis shows that there is no relationship between income and average ratings on different types of restaurants. It shows that people’s income does not affect their taste of food.
+
+In addition, we explored the distribution of average ratings of different types of food in different states. We discover that: African restaurants have the relatively higher rating than other types of food; average ratings for American restaurants has the biggest variation among seven states; the types of restaurants that have the highest and lowest average ratings in each state. 
+
+Our findings are interesting and proved many of our assumptions wrong. And we also had other interesting findings included in our body of contents. Although we had a rich discovery, there is still a lot to explore other factors that relate to average ratings. It will be interesting to have demography data to explore the relationship between race and average ratings of their own types of food. For example, will Chinese give higher ratings to Chinese food in certain areas? We can even connect our findings to the questions in order to have a more holistic view of the average ratings. It may serve as a starting point for continuous study of the topic. 
+
+
+
+***  
+
+###Appendix  
+
+####JSON to CSV python code
+```{r, eval =FALSE}
+import json
+import csv
+import codecs
+
+###########
+# Reviews #
+###########
+
+i =0; 
+for line in open("yelp_academic_dataset_review.json", 'r'):
+	reviews_parsed.append(json.loads(line))
+	i = i + 1
+	if(i == 350000):
+		break;
+
+all_data = []
+
+for item in reviews_parsed:
+	all_data.append(item)
+
+review_data = open('Complete.csv', 'w')
+csvwriter = csv.writer(review_data)
+
+count = 0
+
+for review in all_data:
+	if count == 0:
+		header = review.keys()
+		csvwriter.writerow(header)
+		count += 1
+	csvwriter.writerow([unicode(val).encode("utf-8") for val in review.values()])
+review_data.close()
+
+
+############
+# Business #
+############
+
+business_parsed = []
+i =0; 
+for line in open("yelp_academic_dataset_business.json", 'r'):
+	business_parsed.append(json.loads(line))
+	i = i+1
+
+B_data = []
+
+for item in business_parsed:
+	B_data.append(item)
+
+business_data = open('CheckIns.csv', 'w')
+csvwriter3 = csv.writer(business_data)
+
+count = 0
+
+for business in B_data:
+	if count == 0:
+		header = business.keys()
+		csvwriter3.writerow(header)
+		count += 1
+	csvwriter3.writerow([unicode(val).encode("utf-8") for val in business.values()])
+
+business_data.close()
+
+```
+
+Code for data cleaning: 
+```{r, eval= FALSE}
+
+#Import necessary libraries
+library(DataComputing)
+library(geosphere)
+library(ggthemes)
+
+##PART I
+#Import Data from CSV files
+bdata <- read.csv("/Users/EllyWang/Documents/School/Stats 133/Yelp/Businesses.csv")
+cdata <- read.csv("/Users/EllyWang/Documents/School/Stats 133/Yelp/Complete.csv")
+MedianIncome <- read.csv("/Users/EllyWang/stat-133/ZipMedianIncome.csv")
+
+##PART II: Joining data tables and create necessary variables
+#Join Restaurants and Average Reviews
+id_stars <- cdata %>% group_by(business_id) %>% 
+  summarize(avgStars = mean(stars, na.rm=TRUE), numReview = n())
+bdata <- left_join(bdata, id_stars, by= c("business_id"= "business_id"))
+
+#Add Zipcode
+bdata <- bdata %>% 
+  extractMatches("[:space:]([:digit:]+)$", full_address, ZipCode=1)
+bdata$ZipCode <- strtoi(bdata$ZipCode)
+bdata <- bdata %>% filter(ZipCode>10, !is.null(ZipCode))
+
+#Clean categories, remove unnecessary marks
+bdata <- bdata %>% 
+  mutate(categories = gsub("'|^//[|//]$|","",categories)) %>% 
+  mutate(categories = gsub("^u","",categories)) %>% 
+  mutate(categories = gsub(", u", "," ,categories))
+
+#Filter out restaurants
+restaurants <- bdata[grepl("Restaurants", bdata$categories),]
+
+
+##PART III: Add Categories
+
+#Function that puts TRUE if category is present for the given business
+checkcategory <- function(category){
+  #pattern = paste("(", category, ")", sep="")
+  pattern = paste(category, collapse = "|")
+  Categories <- grepl(pattern, restaurants$categories) 
+  return(Categories)
+}
+
+#Create 6 Large Categories for Food Types
+asianf <- c("Asian Fusion","Chinese","Dim Sum", "Laotian", "Filipino",  "Indian", "Japanese", "Vietnamese", "Korean", "Sushi Bars", "Thai", "Himalayan/Nepalese", "Indonesian", "Mongolian")
+mideastf <- c("Middle Eastern", "Afghan", "Falafel", "Kosher", "Pakistan", "Persian/Iranian", "Lebanese")
+africanf <- c("African", "Ethiopian", "Soul Food", "Moroccan")
+americanf <- c("American(New)", "American(Traditional)","Cajun", "Hawaiian", "Southern", "Burgers", "Fast Food", "Hot Dogs", "Sandwishes")
+latinamericaf <- c("Latin American", "Caribbean", "Cuban", "Mexican", "Peruvian", "Argentine", "Colombian")
+europef <- c("Belgain", "French", "German", "Greek", "Hungarian", "Irish", "Italian", "Mediterranean", "Polish", "Portuguese", "Russian", "Spanish", "Pizza")
+
+#Add columns indicators for each type of food
+Asian <- checkcategory(asianf)
+MiddleEastern <- checkcategory(mideastf)
+African <- checkcategory(africanf)
+American <- checkcategory(americanf)
+LatinAmerican <- checkcategory(latinamericaf)
+European <- checkcategory(europef)
+restaurants <- cbind(restaurants, Asian, MiddleEastern, African, LatinAmerican,
+                     European)
+
+#Add variable Type
+restaurants <- restaurants %>% mutate(Type = ifelse(American== TRUE, "American",
+                                                    ifelse(Asian == TRUE, "Asian", 
+                                                           ifelse(MiddleEastern== TRUE, "MiddleEastern",
+                                                                  ifelse(African == TRUE, "African",
+                                                                         ifelse(LatinAmerican == TRUE, "LAmerican",
+                                                                                ifelse(European == TRUE, "European", "Other")))))))
+
+#Filter out those that have reviews
+restaurants <- restaurants %>% filter(!is.na(numReview))
+
+##PART IV: Add Income Information 
+#Adding Income
+rest_Income <- left_join(restaurants, MedianIncome, by= c("ZipCode"= "Zip"))
+restaurants <- rest_Income %>% 
+  extractMatches("([:digit:])",attributes, price=1)
+######
+restaurants %>% ggplot (aes(avgStars)) + 
+  geom_density(aes(fill =state)) + 
+  facet_grid(state~Type)
+
+
+restaurants %>% ggplot(aes(Type, avgStars)) + 
+  geom_boxplot(aes(col = Type)) + 
+  facet_wrap(~state)
+
+```
+
+Code for all the plots generated (code chunks are combined):
+```{r, eval =FALSE}
+##
+#Part 1
+##
+
+ZipCodeRatings <- restaurants %>% 
+  group_by(ZipCode) %>%
+  summarize(avgReview = mean(avgStars, na.rm = TRUE))
+
+zip_state <- restaurants %>% select(ZipCode, state)
+zip_state <- unique(zip_state)
+
+ZipCodeRatings <- left_join(ZipCodeRatings, zip_state, by = c("ZipCode" = "ZipCode"))
+ZipCodeRatings <- ZipCodeRatings %>% mutate(region = as.character(ZipCode))
+ZipCodeRatings <- ZipCodeRatings %>% mutate(value = avgReview)
+
+
+not_included_zip <- c(28246, 85218, 85219, 85220, 85222, 85228, 85232, 85239, 85242, 85358, 85378, 89152)
+ZipCodeRatings <- ZipCodeRatings %>% filter(! region %in% not_included_zip)
+
+restaurants <- restaurants %>% mutate (newvar = as.character(Median..))
+restaurants <- restaurants %>% cbind(MedIncome= gsub(",", "",restaurants$newvar)) %>%
+  mutate(MedIncome = strtoi(MedIncome))
+
+quantiles <- quantile(restaurants$MedIncome, na.rm =TRUE)
+
+Income_quart <- restaurants %>% 
+  mutate (Quantile = ifelse(MedIncome < quantiles[1], 1,
+                            ifelse(MedIncome < quantiles[2], 2,
+                                   ifelse(MedIncome < quantiles[3], 3,
+                                          ifelse(MedIncome <quantiles[4],4,5)))))
+
+Income_Zip <- Income_quart %>% mutate(region = ZipCode, value = Quantile) %>%
+  select(region, value, state) 
+Income_Zip <- unique(Income_Zip)
+
+#NC Maps
+p1<-Income_Zip %>% 
+  filter(state == "NC") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Charlotte-Concord-Gastonia, NC-SC",
+                 title = "Income for Charlotte Area")
+p2<- ZipCodeRatings %>% filter(state == "NC") %>% 
+  zip_choropleth(msa_zoom = "Charlotte-Concord-Gastonia, NC-SC",
+                 title = "Avg Ratings for Charlotte Area")
+grid.arrange(p1,p2,ncol=2)
+
+#PA Maps
+p1<-Income_Zip %>% 
+  filter(state == "PA") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Pittsburgh, PA",
+                 title = "Income for Pittsburgh Area")
+p2<- ZipCodeRatings %>% filter(state == "PA") %>% 
+  zip_choropleth(msa_zoom = "Pittsburgh, PA",
+                 title = "Avg Ratings for Pittsburgh Area")
+grid.arrange(p1,p2,ncol=2)
+
+#WI Maps
+p1<-Income_Zip %>% 
+  filter(state == "WI") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Madison, WI",
+                 title = "Income for Madison Area")
+p2<- ZipCodeRatings %>% filter(state == "WI") %>% 
+  zip_choropleth(msa_zoom = "Madison, WI",
+                 title = "Avg Ratings for Madison Area")
+grid.arrange(p1,p2,ncol=2)
+
+#IL Maps
+p1<-Income_Zip %>% 
+  filter(state == "IL") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Champaign-Urbana, IL",
+                 title = "Income for Urbana-Champaign Area")
+p2<- ZipCodeRatings %>% filter(state == "IL") %>%
+  zip_choropleth(msa_zoom = "Champaign-Urbana, IL",
+                 title = "Avg Ratings for Urbana-Champaign Area")
+grid.arrange(p1,p2,ncol=2)
+
+#NV Maps
+p1 <- Income_Zip %>% 
+  filter(state == "NV") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Las Vegas-Henderson-Paradise, NV",
+                 title = "Income for Las Vegas Area")
+p2<- ZipCodeRatings %>% filter(state == "NV") %>% 
+  zip_choropleth(msa_zoom = "Las Vegas-Henderson-Paradise, NV",
+                 title = "Avg Ratings for Las Vegas Area")
+grid.arrange(p1,p2,ncol=2)
+
+#AZ Maps
+p1<-Income_Zip %>% 
+  filter(state == "AZ") %>% 
+  mutate (region = as.character(region))  %>%
+  zip_choropleth(msa_zoom = "Phoenix-Mesa-Scottsdale, AZ",
+                 title = "Income for Phoenix Area")
+p2<- ZipCodeRatings %>% filter(state == "AZ") %>% 
+  zip_choropleth(msa_zoom = "Phoenix-Mesa-Scottsdale, AZ",
+                 title = "Avg Ratings for Phoenix Area")
+grid.arrange(p1,p2,ncol=2)
+
+##
+#Part 2
+##
+
+numRest <- Income_quart %>% group_by(Quantile, Type) %>% summarize(count = n())
+
+
+numRest %>%
+  filter(Type != "Other", !is.na(Quantile)) %>%
+  ggplot(aes(fill = Type, x= Type, y = count)) +
+  geom_bar(position="dodge", stat="identity")+
+  facet_wrap(~ Quantile, nrow= 2) + 
+  theme(axis.text.x = element_blank()) +
+  theme_light() +
+  labs(title = "Count For Each Type of Restaurants For Different Income Regions")
+
+
+##
+#Part 3
+##
+
+restaurants$price <- restaurants$price %>% as.numeric()
+rest1 <- 
+  restaurants%>%
+  group_by(Type, state) %>% mutate(avg = mean(price, na.rm= TRUE), sd= sd(price, na.rm = TRUE))
+
+rest1 <- 
+  rest1%>%
+  mutate(upper = avg + sd, lower = avg - sd)
+
+p <- rest1 %>% 
+  filter(Type != "Other") %>% 
+  ggplot(aes(fill = Type, x= Type, y = avg)) +
+  geom_bar(position="dodge", stat="identity")+
+  facet_wrap(~ state, nrow= 2) +
+  labs(y= "Average Price Range")
+
+p <- p + geom_errorbar(aes(ymin = lower, ymax= upper),
+                       position = "dodge" , width = 0.25) +
+  ggtitle("Type and Price, by State")+
+  theme_light()+
+  theme(axis.text.x = element_blank())
+p
+
+rich <- rest1%>% 
+  filter(price > 2) %>%
+  group_by(state, price) %>% 
+  tally(sort = TRUE)
+
+count <- rest1 %>% group_by(state) %>% tally()
+
+richcount  <-  inner_join(rich,count, by = "state")
+richcount <- richcount %>% mutate(richratio = 100* n.x/n.y) 
+
+q <- richcount %>% 
+  ggplot(aes(state, richratio))+
+  geom_point(size= 4, color= "darkgreen")+
+  theme_light()+
+  ggtitle("Expensive Restaurants, by State")+
+  labs(x= "State", y= "percent 3 and 4 stars")
+q
+
+
+##
+#Part 4
+##
+
+restaurants %>% ggplot(aes(Type, avgStars)) + 
+  geom_boxplot(aes(col = Type)) + 
+  facet_wrap(~state) + 
+  theme_light() + 
+  theme(axis.text.x = element_blank()) +
+  labs(title = "Type and Rating, by State", x = "Type of Restaurant", y = "Average Ratings")
+
+##
+#Part 5
+##
+restaurants %>% 
+  ggplot(aes(MedIncome,avgStars))+
+  geom_point()+
+  facet_grid(Type~.)+
+  stat_smooth() +
+  theme_light() + xlab("Income") + ylab("Average Rating")
+
+restaurants %>% ggplot (aes(avgStars)) +
+  geom_density(aes(fill =state, color = state, alpha =0.5)) + 
+  facet_grid(state~Type) +
+  theme_light() +
+  xlab("Average Rating") + 
+  ggtitle("Distribution of Average Ratings for Different Types of Food")
+
+restaurants %>% 
+  ggplot(aes(MedIncome, avgStars))+
+  geom_point()+
+  facet_grid(Type~price)+
+  stat_smooth() +
+  theme_light() + 
+  labs(x="Income", y="Average Rating")
+```
+                                                                     
