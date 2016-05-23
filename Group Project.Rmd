@@ -1,0 +1,81 @@
+---
+title: "Untitled"
+author: ""
+date: ""
+output: 
+  html_document:
+    fig_height: 3
+    fig_width: 5
+---
+<!-- Don't edit in between this line and the one below -->
+```{r include=FALSE}
+# Don't delete this chunk if you are using the DataComputing package
+library(DataComputing)
+```
+*Source file* 
+```{r, results='asis', echo=FALSE}
+includeSourceDocuments()
+```
+<!-- Don't edit the material above this line -->
+
+
+```{r}
+businesses <-read.csv("/Users/HAOCHEN/Desktop/Businesses.csv")
+Complete<-read.csv("/Users/HAOCHEN/Desktop/Complete.csv")
+
+
+df.1 <- businesses %>% inner_join(Complete, by=c("business_id"="business_id"))
+```
+
+```{r}
+df.2 <- df.1 %>% select(-votes,-type.x,-type.y,-name, -hours, -attributes, -open) %>% 
+filter(grepl("Restaurants",categories)) %>%
+mutate(neighborhoods = gsub("^\\[u'|'\\]$|^\\[\\]$", "",neighborhoods)) %>% mutate(categories = gsub("'|^\\[|\\]$|","",categories)) %>% mutate(categories = gsub("^u","",categories)) %>% 
+mutate(categories = gsub(", u", "," ,categories))
+
+names(df.2)
+```
+
+```{r}
+names(df.2)[8]<-"overall_star"
+names(df.2)[14]<-"individual_star"
+  
+head(df.2)
+```
+
+```{r}
+Counts <- 
+  Complete %>%
+  group_by(business_id) %>%
+  tally(sort=TRUE)
+```
+
+```{r}
+Businesses <- 
+  businesses%>%
+  mutate(attributes= gsub("u'","",attributes),
+         categories= gsub("u'","",categories),
+         neighborhoods=gsub("u'","",neighborhoods))
+```
+
+```{r}
+Open <- 
+  Businesses %>% 
+  filter(grepl("Restaurant",categories), as.character(open) == "True")
+```
+
+```{r}
+Reviews <- Open %>%
+  select(review_count,name,business_id,city,categories) %>%
+  inner_join(Complete[,-(1:4)],by= c("business_id"="business_id"))
+```
+
+```{r}
+ReviewNumber <-
+  Reviews %>% select(review_count,business_id) %>% arrange(desc(review_count))
+```
+
+```{r}
+
+```
+

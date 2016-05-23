@@ -1,0 +1,11 @@
+rest <- restaurants %>% select(city, name, state, avgStars, ZipCode, Type, Mean, price)
+##pie chart for proportion of restaurants
+```{r}
+resttotal <- rest%>% group_by(Type, state) %>% summarize(total= n())
+RT %>% 
+ggplot(aes(factor(1),X.1, fill = Type))+
+  geom_bar(stat="identity", width = 1)+
+  coord_polar( theta = "y")+
+  facet_grid(~state)+
+  ylab("Percentage")
+```

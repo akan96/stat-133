@@ -1,0 +1,299 @@
+---
+title: "Untitled"
+author: ""
+date: ""
+output: 
+  html_document:
+    fig_height: 3
+    fig_width: 5
+---
+<!-- Don't edit in between this line and the one below -->
+```{r include=FALSE}
+# Don't delete this chunk if you are using the DataComputing package
+library(DataComputing)
+```
+*Source file* 
+```{r, results='asis', echo=FALSE}
+includeSourceDocuments()
+```
+<!-- Don't edit the material above this line -->
+
+
+```{r}
+businesses <-read.csv("/Users/Yujie/Downloads/Businesses.csv")
+Complete<-read.csv("/Users/Yujie/Downloads/Complete.csv")
+
+df.1 <- businesses %>% inner_join(Complete, by=c("business_id"="business_id"))
+
+df.2 <- df.1 %>% select(-votes,-type.x,-type.y,-name, -hours, -attributes, -open) %>% 
+filter(grepl("Restaurants",categories)) %>%
+mutate(neighborhoods = gsub("^\\[u'|'\\]$|^\\[\\]$", "",neighborhoods)) %>% mutate(categories = gsub("'|^\\[|\\]$|","",categories)) %>% mutate(categories = gsub("^u","",categories)) %>% 
+mutate(categories = gsub(", u", "," ,categories))
+
+names(df.2)
+names(df.2)[8]<-"overall_star"
+names(df.2)[14]<-"individual_star"
+  
+head(df.2)
+  
+```
+
+```{r}
+Holidays<-read.csv("http://tiny.cc/dcf/US-Holidays.csv") %>%
+  mutate(date=as.Date(dmy(date)))
+```
+
+```{r}
+df.3 <- df.2 %>% select(review_id,categories,individual_star,date,business_id,review_count,overall_star,review_id ) %>% mutate(date=as.Date(date))
+
+levels(as.factor(df.2$categories))
+
+join.df <-df.3 %>% left_join(Holidays)
+
+holidays <- join.df %>% filter(!is.na(holiday))
+
+nonholidays <- join.df %>% filter(is.na(holiday))
+
+
+holidays.2 <- holidays %>% group_by(holiday) %>% summarise(ave_star = mean(individual_star), sd_star = sd(individual_star), total_review = n())
+```
+
+```{r}
+
+                                                                
+sd(holidays$individual_star)
+
+nonholiday_summary <- holidays %>% group_by(date) %>% summarise(ave_star = mean(individual_star), sd_star = sd(individual_star), total_review = n())
+
+mean(nonholiday_summary$total_review)
+sd(nonholidays$individual_star)
+holiday_summary2 <- holiday_summary %>% group_by(holiday) %>%summarise(ave_review = mean(total_review),ave_star=mean(ave_star),ave_sd =mean(sd_star,na.rm = T))
+```
+
+```{r}
+# 1 star review
+one_star_review <- holidays %>% filter(individual_star == 1) %>% group_by(holiday) %>% summarise(count = n()) %>% mutate(percent=count/holidays.2$total_review) %>% arrange(desc(percent)) %>% mutate(rank = rank(desc(percent)))
+
+# 5 star review
+five_star_review <- holidays %>% filter(individual_star == 5) %>% group_by(holiday) %>% summarise(count = n()) %>% mutate(percent=count/holidays.2$total_review) %>% arrange(percent)
+
+#extreme review
+extreme_review_percent <- one_star_review%>% inner_join(five_star_review, by=c("holiday"="holiday")) %>% mutate(extreme_review_percent = percent.x+percent.y) %>% select(holiday,percent.x, percent.y, extreme_review_percent)%>% arrange(desc(extreme_review_percent))
+
+names(extreme_review_percent)[2]<-"one_star_percent"
+names(extreme_review_percent)[3]<-"five_star_percent"
+```
+
+```{r}
+holidays.2 %>% ggplot(aes(x=holiday, y= ave_star)) + geom_point(size= 5, alpha= 0.3) +geom_text(aes(label=holiday,angle= 60)) + geom_hline(yintercept = 3.6)+ ylim(c(3,4.1))+ theme(axis.text.x = element_blank())
+
+holidays.2 %>% ggplot(aes(x=holiday, y= sd_star)) + geom_point(size= 5, alpha= 0.3) +geom_text(aes(label=holiday,angle= 60)) + geom_hline(yintercept =1.3)+ ylim(c(1,1.65))+ theme(axis.text.x = element_blank())
+
+extreme_review_percent %>% gather(key = star,value = percent,-holiday,-extreme_review_percent) %>% ggplot(aes(x=holiday, y=percent,fill=star))+geom_bar(stat = "identity",position = "dodge")
+
+
+extreme_review_percent %>% ggplot(aes(x=holiday, y=extreme_review_percent))+geom_bar(stat = "identity")
+```
+
+```{r}
+western_restaurant <-df.3 %>% filter(grepl("Greek|Italian|French|Mediterranean|American|Mexican|Steakhouse|Cajun|Polish|Hawaiian|German|Carribbean", categories))
+
+eastern_restaurant <- df.3 %>% filter(grepl("Vietnamese|Asian|Chinese|Taiwanese|Japanese|Korean|Indian", categories))
+
+fast_food_restaurant <- df.3 %>% filter(grepl("Sandwiches|Salad|Burgers|Pizza|Fast Food", categories))
+```
+
+```{r}
+holiday<-rep(c("Spring Festival Eve","Spring Festival"), times=10)
+
+date <- c("2006-01-28","2006-01-29","2007-02-27","2007-02-28","2008-02-06","2008-02-07","2009-01-25","2009-01-26","2010-02-13","2010-02-14","2011-02-02","2011-02-03","2012-01-22","2012-01-23","2013-02-10","2013-02-11","2014-01-30","2014-01-31","2015-02-18","2015-02-19")
+
+Spring_festival <- data.frame(holiday,date)
+
+Spring_festival$date <-as.Date(Spring_festival$date)
+
+total_holiday <-rbind(Spring_festival,holiday_small)
+
+nonholiday2 <- df.3 %>% left_join(total_holiday, by= c("date"="date")) %>% filter(is.na(holiday))
+
+holiday2 <- df.3 %>% left_join(total_holiday, by= c("date"="date")) %>% filter(!is.na(holiday))
+
+```
+
+
+
+western restaurant
+```{r}
+western_restaurant <- "Greek|Italian|French|Mediterranean|American|Mexican|Steakhouse|Cajun|Polish|Hawaiian|German|Carribbean"
+western_nonholiday <-nonholiday2 %>% filter(grepl(western_restaurant, categories))
+
+western_holiday <-holiday2 %>% filter(grepl(western_restaurant, categories))
+
+western_spring <- western_holiday %>% filter(holiday=="Spring Festival")
+mean(western_spring$individual_star)
+#3.683544
+
+a <-western_spring %>% group_by(date) %>% summarise(review_count=n())  
+mean(a$review_count)
+#7.9
+
+
+western_newyear <-western_holiday %>% filter(holiday=="New Year's Day") 
+mean(western_newyear$individual_star)
+#4.081395
+
+b <- western_newyear %>% group_by(date) %>% summarise(review_count=n())  
+ 
+mean(b$review_count)
+#9.555556
+
+western_daily <-western_nonholiday %>% group_by(date) %>% summarise(review_count=n())
+mean(western_daily$review_count)
+#10.4
+
+mean(western_nonholiday$individual_star)
+#3.725646
+
+```
+eastern restaurants
+```{r}
+eastern_restaurant<-"Vietnamese|Asian|Chinese|Taiwanese|Japanese|Korean|Indian"
+eastern_nonholiday <-nonholiday2 %>% filter(grepl(eastern_restaurant, categories))
+eastern_holiday <-holiday2 %>% filter(grepl(eastern_restaurant, categories))
+mean(eastern_nonholiday$individual_star)
+#3.581796
+eastern_daily <-eastern_nonholiday %>% group_by(date) %>% summarise(review_count=n())
+mean(eastern_daily$review_count)
+#3.100631
+
+eastern_spring <- eastern_holiday %>% filter(holiday=="Spring Festival")
+mean(eastern_spring$individual_star)
+#3.833333
+
+c <-eastern_spring %>% group_by(date) %>% summarise(review_count=n())  
+mean(c$review_count)
+#4.28571
+
+eastern_newyear <-eastern_holiday %>% filter(holiday=="New Year's Day") 
+mean(eastern_newyear$individual_star)
+#3.740741
+
+d <- eastern_newyear %>% group_by(date) %>% summarise(review_count=n())  
+ 
+mean(d$review_count)
+
+#3.857143
+
+```
+
+```{r}
+fastfood_restaurant<-"Sandwiches|Salad|Burgers|Pizza|Fast Food"
+fastfood_nonholiday <-nonholiday2 %>% filter(grepl(fastfood_restaurant, categories))
+fastfood_holiday <-holiday2 %>% filter(grepl(fastfood_restaurant, categories))
+mean(fastfood_nonholiday$individual_star)
+#3.57759
+fastfood_daily <-fastfood_nonholiday %>% group_by(date) %>% summarise(review_count=n())
+mean(fastfood_daily$review_count)
+#4.332868
+
+fastfood_spring <- fastfood_holiday %>% filter(holiday=="Spring Festival")
+mean(fastfood_spring$individual_star)
+#3.580645
+
+c <-fastfood_spring %>% group_by(date) %>% summarise(review_count=n())  
+mean(c$review_count)
+#3.444444
+fastfood_newyear <-fastfood_holiday %>% filter(holiday=="New Year's Day") 
+mean(fastfood_newyear$individual_star)
+#3.724138
+
+d <- fastfood_newyear %>% group_by(date) %>% summarise(review_count=n())  
+ 
+mean(d$review_count)
+#4.833333
+```
+
+```{r}
+vec<-1:12
+w<-sample(western, size=9000, replace = FALSE)
+month_w <-w %>% mutate(month = month(date))
+num_w<-numeric(12)
+
+for (i in vec){n<- month_w %>% filter(month == i) %>% nrow()
+num_w[i]<- n}
+num_w
+
+e<-sample(eastern, size=9000, replace = FALSE)
+month_e <-e %>% mutate(month = month(date))
+num_e<-numeric(12)
+month_e <-e %>% mutate(month = month(date))
+for (i in vec){n<- month_e %>% filter(month == i) %>% nrow()
+num_e[i]<- n}
+num_e
+
+
+
+
+f<-sample(fast_food, size=9000, replace = FALSE)
+month_f <-f %>% mutate(month = month(date))
+num_f<-numeric(12)
+
+for (i in vec){n<- month_f %>% filter(month == i) %>% nrow()
+num_f[i]<- n}
+num_f
+
+
+month <- 1:12
+num<-data.frame(num_w,num_e,num_f,month) %>% gather(key = type,value = num,num_w,num_e,num_f)
+
+ggplot(num)+
+  aes(x=month, y=num, col=type) + geom_point() + geom_line() + scale_x_discrete(breaks= 1:12, label=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))+ ylab("number of reviews")+ ggtitle( "Monthly variation of number of reviews")
+
+```
+
+```{r}
+
+year_w <-w %>% mutate(year= year(date))
+num_w<-numeric(10)
+
+year_vec<-2005:2015
+for (i in 1:length(year_vec)) {
+n<- year_w %>% filter(year == year_vec[i]) %>% nrow()
+num_w[i]<- n}
+num_w
+
+e<-sample(eastern, size=9000, replace = FALSE)
+month_e <-e %>% mutate(month = month(date))
+num_e<-numeric(12)
+month_e <-e %>% mutate(month = month(date))
+for (i in vec){n<- month_e %>% filter(month == i) %>% nrow()
+num_e[i]<- n}
+num_e
+
+
+
+
+f<-sample(fast_food, size=9000, replace = FALSE)
+month_f <-f %>% mutate(month = month(date))
+num_f<-numeric(12)
+
+for (i in vec){n<- month_f %>% filter(month == i) %>% nrow()
+num_f[i]<- n}
+num_f
+
+
+
+
+
+month <- 1:12
+num<-data.frame(num_w,num_e,num_f,month) %>% gather(key = type,value = num,num_w,num_e,num_f)
+
+ggplot(num)+
+  aes(x=month, y=num, col=type) + geom_point() + geom_line() + scale_x_discrete(breaks= 1:12, label=c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))+ ylab("number of reviews")+ ggtitle( "Monthly variation of number of reviews")
+
+```
+
+```{r}
+
+```
+

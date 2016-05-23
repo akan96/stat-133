@@ -1,0 +1,153 @@
+---
+title: "Most Polarizing Category"
+author: "Xuyu Zhang"
+date: "April 30 2016"
+output: 
+  html_document:
+    fig_height: 3
+    fig_width: 5
+---
+<!-- Don't edit in between this line and the one below -->
+```{r include=FALSE}
+# Don't delete this chunk if you are using the DataComputing package
+library(DataComputing)
+```
+*Source file* 
+```{r, results='asis', echo=FALSE}
+includeSourceDocuments()
+```
+<!-- Don't edit the material above this line -->
+
+Input
+```{r}
+library(readr)
+attr <- read_csv("/Users/Joyce/Desktop/stat-133/Separated_Attributes.csv")
+cat <- read_csv("/Users/Joyce/Desktop/stat-133/Separated_Categories.csv")
+```
+
+```{r}
+#combine states into regions
+state <- cat %>% group_by(state) %>% summarise(count=n()) %>% print()
+west <- c("AZ", "NV")
+south <- c("SC", "NC")
+mid_west <- c("IL", "WI")
+north_east <- c("PA")
+
+#add region variable
+empty <- rep(NA, length(cat))
+cat$region <- empty
+for (i in 1:length(cat)) {
+  if (cat[i,8] %in% west)
+    cat[i,11] <- "west"
+  else if (cat[i,8] %in% south)
+    cat[i,11] <- "south"
+  else if (cat[i,8] %in% mid_west)
+    cat[i,11] <- "mid west"
+  else if (cat[i,8] %in% north_east)
+    cat[i,11] <- "north east"
+  else
+    cat[i,11] <- NA
+}
+```
+
+```{r}
+#combine different categories
+asianf <- c("Asian Fusion","Chinese","Dim Sum", "Laotian", "Filipino",  "Indian", "Japanese", "Vietnamese", "Korean", "Sushi Bars", "Thai", "Himalayan/Nepalese", "Indonesian", "Mongolian")
+mideastf <- c("Middle Eastern", "Afghan", "Falafel", "Kosher", "Pakistan", "Persian/Iranian", "Lebanese")
+africanf <- c("African", "Ethiopian", "Soul Food", "Moroccan")
+americanf <- c("American(New)", "American(Traditional)","Cajun", "Hawaiian", "Southern", "Burgers", "Fast Food", "Hot Dogs", "Sandwishes")
+latinamericaf <- c("Latin American", "Caribbean", "Cuban", "Mexican", "Peruvian", "Argentine", "Colombian")
+europef <- c("Belgain", "French", "German", "Greek", "Hungarian", "Irish", "Italian", "Mediterranean", "Polish", "Portuguese", "Russian", "Spanish", "Pizza")
+```
+
+```{r}
+#add food type
+#tert
+cat$food <- empty
+for (i in 1:2751) {
+  if (cat[i,6] %in% asianf)
+    cat[i,10] <- "Asian"
+  else if (cat[i,6] %in% africanf)
+    cat[i,10] <- "African"
+  else if (cat[i,6] %in% americanf)
+    cat[i,10] <- "American"
+  else if (cat[i,6] %in% mideastf)
+    cat[i,10] <- "Middle Estern"
+  else if (cat[i,6] %in% latinamericaf)
+    cat[i,10] <- "Latin American"
+  else if (cat[i,6] %in% europef)
+    cat[i,10] <- "European"
+  else
+    cat[i,10] <- NA
+}
+```
+
+```{r}
+#sec
+for (i in 1:2751) {
+  if (cat[i,5] %in% asianf)
+    cat[i,10] <- "Asian"
+  else if (cat[i,5] %in% africanf)
+    cat[i,10] <- "African"
+  else if (cat[i,5] %in% americanf)
+    cat[i,10] <- "American"
+  else if (cat[i,5] %in% mideastf)
+    cat[i,10] <- "Middle Estern"
+  else if (cat[i,5] %in% latinamericaf)
+    cat[i,10] <- "Latin American"
+  else if (cat[i,5] %in% europef)
+    cat[i,10] <- "European"
+  else
+    cat[i,10] <- NA
+}
+```
+
+```{r}
+#prim
+for (i in 1:2751) {
+  if (cat[i,4] %in% asianf)
+    cat[i,10] <- "Asian"
+  else if (cat[i,4] %in% africanf)
+    cat[i,10] <- "African"
+  else if (cat[i,4] %in% americanf)
+    cat[i,10] <- "American"
+  else if (cat[i,4] %in% mideastf)
+    cat[i,10] <- "Middle Estern"
+  else if (cat[i,4] %in% latinamericaf)
+    cat[i,10] <- "Latin American"
+  else if (cat[i,4] %in% europef)
+    cat[i,10] <- "European"
+  else
+    cat[i,10] <- NA
+}
+```
+
+```{r}
+cat <- cat %>% 
+  filter(!is.na(cat$food))
+```
+
+
+```{r}
+#graph plot
+#ratings for each region and food type
+ggplot(cat, aes(x=stars)) + 
+  geom_density(color="gray", fill="gray", alpha=.75) +
+  facet_grid(food~region) +
+  xlab("Rating") + ylab("Density")
+
+#comparison
+ggplot(cat, aes(x=stars, group=region) ) + 
+  geom_density(aes(color=region, fill=region), alpha=.5) +
+  facet_grid(food~.)
+
+#Variance
+ggplot(cat, aes(y=stars, x=food)) + 
+  geom_boxplot(aes(color=food, fill=food), alpha=.25, outlier.size=1, outlier.colour="gray") + 
+  ylab("Food Type") + xlab("Rating") + 
+  facet_wrap(~region)
+```
+
+
+
+
